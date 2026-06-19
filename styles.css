@@ -182,6 +182,8 @@ body {
   z-index: 50;
   backdrop-filter: blur(12px);
   gap: 1rem;
+  /* needed for logo absolute centering */
+  overflow: visible;
 }
 
 .header-left {
@@ -208,6 +210,24 @@ body {
   font-size: 1.1rem;
   cursor: pointer;
   color: var(--text-primary);
+}
+
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.header-logo {
+  height: 30px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  border-radius: 3px;
+  pointer-events: auto;
 }
 
 .header-right {
