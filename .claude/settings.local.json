@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where npx *)",
+      "Bash(where python *)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\bistolfi.federico\\\\Desktop\\\\Claude Code\\\\Dashboard KPI Gcia Financiera\\\\.claude\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -L \"https://docs.google.com/spreadsheets/d/1AUAE_-pAigMcUgBxUFmoBm6PteJtu0Rs/gviz/tq?tqx=out:csv&gid=724187878\")",
+      "Read(//tmp/**)",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

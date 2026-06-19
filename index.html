@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard KPI — Riesgo y Recupero | Gerencia Financiera</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="sidebar-overlay"></div>
+
+  <div class="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>Riesgo y Recupero</h2>
+        <p>Gerencia Financiera</p>
+      </div>
+
+      <nav>
+        <a href="#" class="nav-item active" data-tab="home">
+          <span class="nav-icon">R</span>
+          <span>Resumen</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="cobranza">
+          <span class="nav-icon">C</span>
+          <span>Cobranza</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="morosidad">
+          <span class="nav-icon">M</span>
+          <span>Morosidad</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="cuentas">
+          <span class="nav-icon">CC</span>
+          <span>Cuentas y Cartera</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="rollrates">
+          <span class="nav-icon">RR</span>
+          <span>Roll Rates</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="vintage">
+          <span class="nav-icon">V</span>
+          <span>Vintage</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="originacion">
+          <span class="nav-icon">O</span>
+          <span>Originaci&oacute;n (SIISA)</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="last-update" id="lastUpdate"></span>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <header class="header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menuToggle" aria-label="Men&uacute;">&#9776;</button>
+          <h1 id="pageTitle">Resumen Ejecutivo</h1>
+          <span id="lastUpdateHeader" style="font-size:.75rem;color:var(--text-secondary);margin-left:.75rem;white-space:nowrap;"></span>
+        </div>
+        <div class="header-right">
+          <div class="date-filter">
+            <label for="dateFrom">Desde</label>
+            <input type="month" id="dateFrom">
+            <label for="dateTo">Hasta</label>
+            <input type="month" id="dateTo">
+          </div>
+          <button class="btn" id="exportBtn">Exportar PDF</button>
+        </div>
+      </header>
+
+      <div class="content" id="content"></div>
+    </main>
+  </div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <p>Cargando datos desde Google Sheets...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
