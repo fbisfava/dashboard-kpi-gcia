@@ -227,9 +227,12 @@ function fmtVal(v, fmt) {
   }
 }
 
-function getDelta(curr, prev) {
-  if (curr === null || prev === null || prev === 0) return null;
-  return (curr - prev) / Math.abs(prev);
+// Para KPIs de porcentaje devuelve diferencia absoluta (pp); para el resto, variación relativa.
+function getDelta(curr, prev, fmt) {
+  if (curr === null || prev === null) return null;
+  if (fmt === 'pct') return curr - prev; // ej: 0.8301 - 0.8202 = 0.0099 → se muestra como +0.99pp
+  if (prev === 0) return null;
+  return (curr - prev) / Math.abs(prev); // variación relativa para enteros/montos
 }
 
 function semaphore(val, kpi) {
@@ -270,8 +273,8 @@ function renderHome() {
     const prev = getPrevVal(data, hero.col);
     const yoy  = getYoYVal(data, hero.col);
     const sm   = semaphore(last, hero);
-    const dM   = getDelta(last, prev);
-    const dY   = getDelta(last, yoy);
+    const dM   = getDelta(last, prev, hero.fmt);
+    const dY   = getDelta(last, yoy, hero.fmt);
     const spark = getLast12(data, hero.col);
 
     html += `
@@ -279,12 +282,12 @@ function renderHome() {
         <div class="cat-label">${cat.name}</div>
         <div class="kpi-card-header">
           <div class="kpi-name">${hero.name}</div>
-          <div class="semaphore ${sm}"></div>
+          <div class="semaphore ${sm}" title="Semáforo: verde=OK, amarillo=precaución, rojo=alerta"></div>
         </div>
         <div class="kpi-value">${fmtVal(last, hero.fmt)}</div>
         <div class="kpi-deltas">
-          ${deltaTag(dM, hero.up, 'MoM')}
-          ${deltaTag(dY, hero.up, 'YoY')}
+          ${deltaTag(dM, hero.up, 'm/m', hero.fmt)}
+          ${deltaTag(dY, hero.up, 'a/a', hero.fmt)}
         </div>
         <div class="sparkline-container"><canvas></canvas></div>
       </div>`;
@@ -341,29 +344,37 @@ function renderKPICard(kpi, data) {
   const prev = getPrevVal(data, kpi.col);
   const yoy  = getYoYVal(data, kpi.col);
   const sm   = semaphore(last, kpi);
-  const dM   = getDelta(last, prev);
-  const dY   = getDelta(last, yoy);
+  const dM   = getDelta(last, prev, kpi.fmt);
+  const dY   = getDelta(last, yoy, kpi.fmt);
 
   return `
     <div class="kpi-card">
       <div class="kpi-card-header">
         <div class="kpi-name">${kpi.name}</div>
-        <div class="semaphore ${sm}"></div>
+        <div class="semaphore ${sm}" title="Semáforo: verde=OK, amarillo=precaución, rojo=alerta"></div>
       </div>
       <div class="kpi-value">${fmtVal(last, kpi.fmt)}</div>
       <div class="kpi-deltas">
-        ${deltaTag(dM, kpi.up, 'MoM')}
-        ${deltaTag(dY, kpi.up, 'YoY')}
+        ${deltaTag(dM, kpi.up, 'm/m', kpi.fmt)}
+        ${deltaTag(dY, kpi.up, 'a/a', kpi.fmt)}
       </div>
       <div class="sparkline-container"><canvas></canvas></div>
     </div>`;
 }
 
-function deltaTag(delta, higherIsBetter, label) {
+function deltaTag(delta, higherIsBetter, label, fmt) {
   if (delta === null) return `<span class="delta neutral"><span class="delta-label">${label}</span> s/d</span>`;
   const cls = deltaClass(delta, higherIsBetter);
   const arrow = deltaArrow(delta);
-  return `<span class="delta ${cls}">${arrow} ${Math.abs(delta * 100).toFixed(1)}% <span class="delta-label">${label}</span></span>`;
+  let valStr;
+  if (fmt === 'pct') {
+    valStr = Math.abs(delta * 100).toFixed(2) + 'pp';
+  } else if (fmt === 'money') {
+    valStr = Math.abs(delta * 100).toFixed(1) + '%';
+  } else {
+    valStr = Math.abs(delta * 100).toFixed(1) + '%';
+  }
+  return `<span class="delta ${cls}">${arrow} ${valStr} <span class="delta-label">${label}</span></span>`;
 }
 
 // ─── DATA ACCESS ──────────────────────────────────────────────────────────────
