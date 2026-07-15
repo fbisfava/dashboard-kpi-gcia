@@ -266,33 +266,44 @@ function computeSMA12(data, col) {
   return { sma, sd, n };
 }
 
-function semaphoreColor(val, kpi, stats) {
+function semaphoreColor(val, kpi, stats, mmDelta) {
   if (val === null || kpi.up === null) return 'gray';
-  if (!stats) return 'gray';
-  const { sma, sd } = stats;
-  if (kpi.up) {
-    if (val < sma - 2 * sd) return 'red';
-    if (val < sma - sd) return 'yellow';
-    return 'green';
-  } else {
-    if (val > sma + 2 * sd) return 'red';
-    if (val > sma + sd) return 'yellow';
-    return 'green';
+  if (!stats) {
+    if (kpi.fmt === 'pct' && mmDelta !== null && Math.abs(mmDelta) > 0.015) return 'yellow';
+    return 'gray';
   }
+  const { sma, sd } = stats;
+  let color;
+  if (kpi.up) {
+    color = val < sma - 2 * sd ? 'red' : val < sma - sd ? 'yellow' : 'green';
+  } else {
+    color = val > sma + 2 * sd ? 'red' : val > sma + sd ? 'yellow' : 'green';
+  }
+  if (color === 'green' && kpi.fmt === 'pct' && mmDelta !== null && Math.abs(mmDelta) > 0.015) {
+    color = 'yellow';
+  }
+  return color;
 }
 
-function semaphoreTitle(kpi, stats) {
+function semaphoreTitle(kpi, stats, mmDelta) {
   if (kpi.up === null) return 'Sin umbral automático (requiere criterio de gestión)';
-  if (!stats) return 'Datos insuficientes para calcular SMA (se necesitan al menos 4 períodos)';
+  const velocityLine = kpi.fmt === 'pct' && mmDelta !== null && Math.abs(mmDelta) > 0.015
+    ? `Variación m/m: ${mmDelta >= 0 ? '+' : ''}${(mmDelta * 100).toFixed(2)}pp — supera ±1.5pp`
+    : null;
+  if (!stats) {
+    const lines = ['Datos insuficientes para calcular SMA (menos de 4 períodos)'];
+    if (velocityLine) lines.push(velocityLine);
+    return lines.join('\n');
+  }
   const { sma, sd, n } = stats;
   const f = v => fmtVal(v, kpi.fmt);
-  const dir = kpi.up ? '↑ mayor es mejor' : '↓ menor es mejor';
-  return [
+  const lines = [
     `SMA${n} = ${f(sma)}`,
-    `Alerta (±1 DS): ${f(sma - sd)} – ${f(sma + sd)}`,
-    `Crítico (±2 DS): ${f(sma - 2 * sd)} – ${f(sma + 2 * sd)}`,
-    dir
-  ].join('\n');
+    kpi.up ? `Alerta (−1 DS): ${f(sma - sd)}` : `Alerta (+1 DS): ${f(sma + sd)}`,
+    kpi.up ? `Crítico (−2 DS): ${f(sma - 2 * sd)}` : `Crítico (+2 DS): ${f(sma + 2 * sd)}`,
+  ];
+  if (velocityLine) lines.push(velocityLine);
+  return lines.join('\n');
 }
 
 function escapeAttr(s) {
@@ -325,8 +336,8 @@ function renderHome() {
     const dM   = getDelta(last, prev, hero.fmt);
     const dY   = getDelta(last, yoy, hero.fmt);
     const stats = computeSMA12(data, hero.col);
-    const sm   = semaphoreColor(last, hero, stats);
-    const tip  = escapeAttr(semaphoreTitle(hero, stats));
+    const sm   = semaphoreColor(last, hero, stats, dM);
+    const tip  = escapeAttr(semaphoreTitle(hero, stats, dM));
     const spark = getLast12(data, hero.col);
 
     html += `
@@ -395,10 +406,10 @@ function renderKPICard(kpi, data) {
   const last  = getLastVal(data, kpi.col);
   const prev  = getPrevVal(data, kpi.col);
   const yoy   = getYoYVal(data, kpi.col);
-  const stats = computeSMA12(data, kpi.col);
-  const sm    = semaphoreColor(last, kpi, stats);
-  const tip   = escapeAttr(semaphoreTitle(kpi, stats));
   const dM    = getDelta(last, prev, kpi.fmt);
+  const stats = computeSMA12(data, kpi.col);
+  const sm    = semaphoreColor(last, kpi, stats, dM);
+  const tip   = escapeAttr(semaphoreTitle(kpi, stats, dM));
   const dY    = getDelta(last, yoy, kpi.fmt);
 
   return `
