@@ -170,6 +170,24 @@ function parseCSV(text) {
   }
   data.sort((a, b) => a.date - b.date);
 
+  // Auto-normalización: si una columna de % tiene mediana > 1.5, los valores
+  // vienen como 84.48 en vez de 0.8448 → dividir por 100.
+  const pctCols = new Set();
+  for (const cat of CATEGORIES) {
+    for (const kpi of cat.kpis) {
+      if (kpi.fmt === 'pct') pctCols.add(kpi.col);
+    }
+  }
+  for (const col of pctCols) {
+    const colVals = data.map(d => d.vals[col]).filter(v => v !== null);
+    if (!colVals.length) continue;
+    const sorted = [...colVals].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    if (median > 1.5) {
+      data.forEach(d => { if (d.vals[col] !== null) d.vals[col] /= 100; });
+    }
+  }
+
   return data;
 }
 
@@ -616,8 +634,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set last update label
     if (state.raw.length) {
       const last = state.raw[state.raw.length - 1];
-      el('lastUpdate').textContent = 'Datos al: ' + fmtDateLong(last.date);
-      el('lastUpdateHeader').textContent = 'Datos al: ' + fmtDateLong(last.date);
+      el('lastUpdate').textContent = 'Datos a ' + fmtDateLong(last.date);
+      el('lastUpdateHeader').textContent = 'Datos a ' + fmtDateLong(last.date);
     }
 
     // Set date filter defaults
