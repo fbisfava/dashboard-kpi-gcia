@@ -272,11 +272,15 @@ function computeSMA12(data, col) {
   return { sma, sd, n };
 }
 
+function badVelocity(kpi, mmDelta) {
+  if (kpi.fmt !== 'pct' || kpi.up === null || mmDelta === null) return false;
+  return kpi.up ? mmDelta < -0.015 : mmDelta > 0.015;
+}
+
 function semaphoreColor(val, kpi, stats, mmDelta) {
   if (val === null || kpi.up === null) return 'gray';
   if (!stats) {
-    if (kpi.fmt === 'pct' && mmDelta !== null && Math.abs(mmDelta) > 0.015) return 'yellow';
-    return 'gray';
+    return badVelocity(kpi, mmDelta) ? 'yellow' : 'gray';
   }
   const { sma, sd } = stats;
   let color;
@@ -285,16 +289,14 @@ function semaphoreColor(val, kpi, stats, mmDelta) {
   } else {
     color = val > sma + 2 * sd ? 'red' : val > sma + sd ? 'yellow' : 'green';
   }
-  if (color === 'green' && kpi.fmt === 'pct' && mmDelta !== null && Math.abs(mmDelta) > 0.015) {
-    color = 'yellow';
-  }
+  if (color === 'green' && badVelocity(kpi, mmDelta)) color = 'yellow';
   return color;
 }
 
 function semaphoreTitle(kpi, stats, mmDelta) {
   if (kpi.up === null) return 'Sin umbral automático (requiere criterio de gestión)';
-  const velocityLine = kpi.fmt === 'pct' && mmDelta !== null && Math.abs(mmDelta) > 0.015
-    ? `Variación m/m: ${mmDelta >= 0 ? '+' : ''}${(mmDelta * 100).toFixed(2)}pp — supera ±1.5pp`
+  const velocityLine = badVelocity(kpi, mmDelta)
+    ? `Variación m/m: ${mmDelta >= 0 ? '+' : ''}${(mmDelta * 100).toFixed(2)}pp — supera 1.5pp`
     : null;
   if (!stats) {
     const lines = ['Datos insuficientes para calcular SMA (menos de 4 períodos)'];
