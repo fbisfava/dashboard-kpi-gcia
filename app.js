@@ -161,8 +161,14 @@ function parseCSV(text) {
         const n = parseFloat(raw.slice(0, -1).replace(/,/g, ''));
         vals[c] = isNaN(n) ? null : n / 100;
       } else {
-        const cleaned = raw.replace(/^\$\s*/, '').replace(/,/g, '').trim();
-        const n = parseFloat(cleaned);
+        let s = raw.replace(/^\$\s*/, '').trim();
+        // Si termina en coma + 1-2 dígitos, la coma es separador decimal (ej: "571,07" → 571.07)
+        if (/,\d{1,2}$/.test(s)) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+          s = s.replace(/,/g, '');
+        }
+        const n = parseFloat(s);
         vals[c] = isNaN(n) ? null : n;
       }
     }
