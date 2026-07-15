@@ -86,6 +86,7 @@ const CATEGORIES = [
       { name: 'Tasa Aprobación Préstamo',            col: 40, fmt: 'pct', up: true,  th: [0.50, 0.35] },
       { name: 'Tasa Rechazo Préstamo',               col: 41, fmt: 'pct', up: false, th: [0.40, 0.60] },
       { name: 'Rechazos Política Zonas Prést.',     col: 42, fmt: 'int', up: false, th: [20, 50] },
+      { name: 'Tasa de conversión Veraz',            col: 43, fmt: 'pct', up: true,  th: null },
     ]
   }
 ];
