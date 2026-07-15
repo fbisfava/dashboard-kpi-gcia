@@ -253,18 +253,50 @@ function getDelta(curr, prev, fmt) {
   return (curr - prev) / Math.abs(prev); // variación relativa para enteros/montos
 }
 
-function semaphore(val, kpi) {
-  if (val === null || !kpi.th) return 'gray';
-  const [g, y] = kpi.th;
-  if (kpi.up) {
-    if (val >= g) return 'green';
-    if (val >= y) return 'yellow';
-    return 'red';
-  } else {
-    if (val <= g) return 'green';
-    if (val <= y) return 'yellow';
-    return 'red';
+// Computes SMA over last N (up to 12) non-null values + sample SD.
+function computeSMA12(data, col) {
+  const vals = [];
+  for (let i = data.length - 1; i >= 0 && vals.length < 12; i--) {
+    if (data[i].vals[col] !== null) vals.unshift(data[i].vals[col]);
   }
+  if (vals.length < 4) return null;
+  const n = vals.length;
+  const sma = vals.reduce((s, v) => s + v, 0) / n;
+  const sd = n > 1 ? Math.sqrt(vals.reduce((s, v) => s + (v - sma) ** 2, 0) / (n - 1)) : 0;
+  return { sma, sd, n };
+}
+
+function semaphoreColor(val, kpi, stats) {
+  if (val === null || kpi.up === null) return 'gray';
+  if (!stats) return 'gray';
+  const { sma, sd } = stats;
+  if (kpi.up) {
+    if (val < sma - 2 * sd) return 'red';
+    if (val < sma - sd) return 'yellow';
+    return 'green';
+  } else {
+    if (val > sma + 2 * sd) return 'red';
+    if (val > sma + sd) return 'yellow';
+    return 'green';
+  }
+}
+
+function semaphoreTitle(kpi, stats) {
+  if (kpi.up === null) return 'Sin umbral automático (requiere criterio de gestión)';
+  if (!stats) return 'Datos insuficientes para calcular SMA (se necesitan al menos 4 períodos)';
+  const { sma, sd, n } = stats;
+  const f = v => fmtVal(v, kpi.fmt);
+  const dir = kpi.up ? '↑ mayor es mejor' : '↓ menor es mejor';
+  return [
+    `SMA${n} = ${f(sma)}`,
+    `Alerta (±1 DS): ${f(sma - sd)} – ${f(sma + sd)}`,
+    `Crítico (±2 DS): ${f(sma - 2 * sd)} – ${f(sma + 2 * sd)}`,
+    dir
+  ].join('\n');
+}
+
+function escapeAttr(s) {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function deltaClass(delta, higherIsBetter) {
@@ -290,9 +322,11 @@ function renderHome() {
     const last = getLastVal(data, hero.col);
     const prev = getPrevVal(data, hero.col);
     const yoy  = getYoYVal(data, hero.col);
-    const sm   = semaphore(last, hero);
     const dM   = getDelta(last, prev, hero.fmt);
     const dY   = getDelta(last, yoy, hero.fmt);
+    const stats = computeSMA12(data, hero.col);
+    const sm   = semaphoreColor(last, hero, stats);
+    const tip  = escapeAttr(semaphoreTitle(hero, stats));
     const spark = getLast12(data, hero.col);
 
     html += `
@@ -300,7 +334,7 @@ function renderHome() {
         <div class="cat-label">${cat.name}</div>
         <div class="kpi-card-header">
           <div class="kpi-name">${hero.name}</div>
-          <div class="semaphore ${sm}" title="Semáforo: verde=OK, amarillo=precaución, rojo=alerta"></div>
+          <div class="semaphore ${sm}" title="${tip}"></div>
         </div>
         <div class="kpi-value">${fmtVal(last, hero.fmt)}</div>
         <div class="kpi-deltas">
@@ -358,18 +392,20 @@ function renderCategory(catId) {
 }
 
 function renderKPICard(kpi, data) {
-  const last = getLastVal(data, kpi.col);
-  const prev = getPrevVal(data, kpi.col);
-  const yoy  = getYoYVal(data, kpi.col);
-  const sm   = semaphore(last, kpi);
-  const dM   = getDelta(last, prev, kpi.fmt);
-  const dY   = getDelta(last, yoy, kpi.fmt);
+  const last  = getLastVal(data, kpi.col);
+  const prev  = getPrevVal(data, kpi.col);
+  const yoy   = getYoYVal(data, kpi.col);
+  const stats = computeSMA12(data, kpi.col);
+  const sm    = semaphoreColor(last, kpi, stats);
+  const tip   = escapeAttr(semaphoreTitle(kpi, stats));
+  const dM    = getDelta(last, prev, kpi.fmt);
+  const dY    = getDelta(last, yoy, kpi.fmt);
 
   return `
     <div class="kpi-card">
       <div class="kpi-card-header">
         <div class="kpi-name">${kpi.name}</div>
-        <div class="semaphore ${sm}" title="Semáforo: verde=OK, amarillo=precaución, rojo=alerta"></div>
+        <div class="semaphore ${sm}" title="${tip}"></div>
       </div>
       <div class="kpi-value">${fmtVal(last, kpi.fmt)}</div>
       <div class="kpi-deltas">
