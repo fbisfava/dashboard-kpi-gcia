@@ -98,6 +98,166 @@ const CHART_COLORS = [
 
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
+// ─── KPI INFO (definiciones y fuentes) ────────────────────────────────────────
+const _U = {
+  cob:       'https://app.powerbi.com/groups/cb50998e-dd3e-4d25-a7f7-278020578424/reports/987a4bbb-7f63-4381-a795-219f711db072/bf70ed61e3bc2be2ce21?experience=power-bi',
+  mora:      'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/ebab275b130cbbde91d6?experience=power-bi',
+  scores:    'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/985145cf483c77c119d8?experience=power-bi',
+  refin:     'https://app.powerbi.com/groups/cb50998e-dd3e-4d25-a7f7-278020578424/reports/987a4bbb-7f63-4381-a795-219f711db072/ReportSection53b58aab50493cc20c5d?experience=power-bi',
+  evolPrest: 'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/21d0dc48003d71ee37a1?experience=power-bi',
+  evolTC:    'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/9b2dbda7132221e24c90?experience=power-bi',
+  evolTotal: 'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/54b95042560cc73675c1?experience=power-bi',
+  vintage:   'https://app.powerbi.com/groups/b8be9f80-a741-4b8e-8c61-62623fa0a135/reports/9f911f8f-9c87-4a42-be84-bb87caf392f9/eaa444092ecc0e271d0c?experience=power-bi',
+};
+
+const SQL_IH = `WITH stock_mensual AS (
+    SELECT
+        [Periodo Calendario],
+        SUM(CASE WHEN [Estado Gral.] IN ('IH', 'DV') THEN 1 ELSE 0 END) AS cuentas_ih,
+        SUM(CASE WHEN [Estado Gral.] NOT IN ('IH', 'DV', 'AB', 'BJ') THEN 1 ELSE 0 END) AS cuentas_habilitadas
+    FROM [Cuentas Stock Mensual]
+    WHERE [Periodo Calendario] >= 202401
+    GROUP BY [Periodo Calendario]
+),
+ratios AS (
+    SELECT
+        [Periodo Calendario],
+        cuentas_ih,
+        cuentas_habilitadas,
+        cuentas_ih + cuentas_habilitadas AS cuentas_activas,
+        CAST(cuentas_ih AS DECIMAL(18,6)) / NULLIF(cuentas_ih + cuentas_habilitadas, 0) AS ratio_ih_sobre_activas
+    FROM stock_mensual
+),
+bandas AS (
+    SELECT
+        [Periodo Calendario],
+        cuentas_ih,
+        cuentas_habilitadas,
+        cuentas_activas,
+        ratio_ih_sobre_activas,
+        AVG(ratio_ih_sobre_activas) OVER (
+            ORDER BY [Periodo Calendario]
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS media_acumulada,
+        STDEVP(ratio_ih_sobre_activas) OVER (
+            ORDER BY [Periodo Calendario]
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS desvio_std_acumulado
+    FROM ratios
+)
+SELECT
+    [Periodo Calendario],
+    cuentas_ih,
+    cuentas_habilitadas,
+    cuentas_activas,
+    CAST(ROUND(ratio_ih_sobre_activas * 100.0, 2) AS DECIMAL(10, 2)) AS ratio_ih_sobre_activas_pct,
+    CAST(ROUND(media_acumulada * 100.0, 2) AS DECIMAL(10, 2)) AS media_acumulada_pct,
+    CASE
+        WHEN ratio_ih_sobre_activas < media_acumulada - (2 * desvio_std_acumulado)
+          OR ratio_ih_sobre_activas > media_acumulada + (2 * desvio_std_acumulado)
+        THEN 'Sí'
+        ELSE 'No'
+    END AS [Fuera de rango]
+FROM bandas
+ORDER BY [Periodo Calendario];`;
+
+const SQL_AB = `WITH CC_Ordenado AS (
+    SELECT
+        [Nro Cuenta],
+        [Período Cobranza],
+        [Estado General (Ap)],
+        LAG([Estado General (Ap)]) OVER (
+            PARTITION BY [Nro Cuenta]
+            ORDER BY [Período Cobranza]
+        ) AS Estado_Periodo_Anterior
+    FROM [Créditos y Cobranzas Indicadores] WITH (NOLOCK)
+),
+Nuevos_Pases_AB AS (
+    SELECT
+        [Nro Cuenta],
+        [Período Cobranza]
+    FROM CC_Ordenado
+    WHERE [Estado General (Ap)] = 'AB'
+      AND (Estado_Periodo_Anterior <> 'AB' OR Estado_Periodo_Anterior IS NULL)
+)
+SELECT
+    LEFT(CAST(NPA.[Período Cobranza] AS VARCHAR(6)), 4) + '-' +
+    RIGHT(CAST(NPA.[Período Cobranza] AS VARCHAR(6)), 2)     AS [Mes pase a AB],
+    COUNT(NPA.[Nro Cuenta])                                   AS [Cantidad de Cuentas],
+    FORMAT(SUM(CR.[Imp. Saldo Vdo FN (Fin Mes)] + CR.[Imp. Saldo Vdo TC (Fin Mes)]), 'N2', 'es-AR') AS [Monto Total a AB]
+FROM Nuevos_Pases_AB NPA
+INNER JOIN [Cuentas Riesgo] CR WITH (NOLOCK)
+    ON NPA.[Nro Cuenta] = CR.[Nro Cuenta]
+    AND CR.[Periodo] = NPA.[Período Cobranza]
+WHERE LEFT(CAST(NPA.[Período Cobranza] AS VARCHAR(6)), 4) = '2026'
+GROUP BY
+    LEFT(CAST(NPA.[Período Cobranza] AS VARCHAR(6)), 4) + '-' +
+    RIGHT(CAST(NPA.[Período Cobranza] AS VARCHAR(6)), 2)
+ORDER BY [Mes pase a AB] ASC;`;
+
+const KPI_INFO = {
+  // COBRANZA
+  1:  { def: '% importe cobrado del mes de cuentas con tarjeta de crédito y sin préstamo activo.',
+        link: { url: _U.cob, label: 'Cobranza segmentada › Mes › Sin PP' } },
+  2:  { def: '% cobrado del mes de cuentas con tarjeta de crédito y préstamo activo.',
+        link: { url: _U.cob, label: 'Cobranza segmentada › Mes › Con PP' } },
+  3:  { def: '% importe cobrado promedio ponderado entre cobranza del mes de cuentas sin préstamo personal —solo tarjeta de crédito— y cuentas con préstamo y tarjeta de crédito.',
+        link: { url: _U.cob, label: 'Cobranza segmentada › MES › Total' } },
+  4:  { def: '% importe cobrado de cuentas con tarjeta de crédito sin préstamo activo, pasados 90 días del mes de emisión del resumen.',
+        link: { url: _U.cob, label: 'Cobranza segmentada › 90 días › Sin PP' } },
+  5:  { def: '% importe cobrado de cuentas con tarjeta de crédito y préstamo activo, pasados 90 días del mes de emisión del resumen.',
+        link: { url: _U.cob, label: 'Cobranza segmentada › 90 días › Con PP' } },
+  6:  { def: '% importe cobrado promedio ponderado entre cobranza 90 días de cuentas sin préstamo personal —solo tarjeta de crédito— y cuentas con préstamo y tarjeta de crédito.',
+        link: { url: _U.cob, label: 'Cobranza segmentada › 90 días › Total' } },
+  // MOROSIDAD — TC (tabla TC + PF)
+  7:  { def: 'Proporción del saldo total de Tarjeta de Crédito que se encuentra en situación de mora entre 1 y 60 días (tramos 0-30 y 30-60 días). Se calcula como la suma de los saldos en esos tramos dividido el saldo total de cartera TC al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla TC + PF' } },
+  8:  { def: 'Proporción de cuentas de Tarjeta de Crédito que se encuentran en situación de mora entre 1 y 60 días (tramos 0-30 y 30-60 días) sobre el total de cuentas TC activas al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla TC + PF' } },
+  9:  { def: 'Proporción del saldo total de Tarjeta de Crédito que se encuentra en mora mayor a 60 días (tramos 60-90, 90-120, 120-150, 150-180 y más de 180 días) sobre el saldo total de cartera TC al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla TC + PF' } },
+  10: { def: 'Proporción de cuentas de Tarjeta de Crédito en mora mayor a 60 días (tramos 60-90, 90-120, 120-150, 150-180 y más de 180 días) sobre el total de cuentas TC activas al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla TC + PF' } },
+  // MOROSIDAD — Préstamos (tabla FN)
+  11: { def: 'Proporción del saldo total de Préstamos Personales que se encuentra en mora entre 1 y 60 días (tramos 0-30 y 30-60 días) sobre el saldo total de cartera de préstamos al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla FN' } },
+  12: { def: 'Proporción de préstamos en mora entre 1 y 60 días (tramos 0-30 y 30-60 días) sobre el total de préstamos vigentes al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla FN' } },
+  13: { def: 'Proporción del saldo total de Préstamos Personales en mora mayor a 60 días (tramos 60-90, 90-120, 120-150, 150-180 y más de 180 días) sobre el saldo total de cartera de préstamos al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla FN' } },
+  14: { def: 'Proporción de préstamos en mora mayor a 60 días (tramos 60-90, 90-120, 120-150, 150-180 y más de 180 días) sobre el total de préstamos vigentes al cierre del mes.',
+        link: { url: _U.mora, label: 'Datos cartera para riesgo › Dist. de Saldos según estado de mora — tabla FN' } },
+  // CUENTAS Y CARTERA
+  15: { def: 'Cuentas en estado inhabilitado o deuda vencida.', sql: SQL_IH },
+  16: { def: 'Cuentas que no se encuentran en estado inhabilitado, deuda vencida, abogados, o baja.', sql: SQL_IH },
+  17: { def: 'Sumatoria entre cuentas habilitadas y cuentas inhabilitadas o DV.', sql: SQL_IH },
+  18: { def: 'Cuentas inhabilitadas o DV dividido cuentas totales.', sql: SQL_IH },
+  19: { def: "Cantidad de clientes que migran a estado 'Abogados' en el mes en curso.", sql: SQL_AB },
+  20: { def: "Sumatoria de monto adeudado de las cuentas al momento de pasar a estado 'AB'.", sql: SQL_AB },
+  21: { def: 'Cantidad de refinanciaciones realizadas en el período.',
+        link: { url: _U.refin, label: 'Cobranza segmentada › General' } },
+  24: { def: 'Score Veraz promedio de la cartera de clientes activos.',
+        link: { url: _U.scores, label: 'Datos cartera para riesgo › Scores' } },
+  // ROLL RATES
+  25: { def: '% del saldo de préstamos sin atrasos el mes anterior que tiene entre 1 y 30 días de atraso en el mes actual.',
+        link: { url: _U.evolPrest, label: 'Datos cartera para riesgo › Evolución cartera (importes) de préstamos' } },
+  26: { def: '% del saldo de Tarjeta de Crédito sin atrasos el mes anterior que tiene entre 1 y 30 días de atraso en el mes actual.',
+        link: { url: _U.evolTC, label: 'Datos cartera para riesgo › Evolución cartera (importes) de tarjeta' } },
+  27: { def: 'Porcentaje del saldo de préstamos que se encontraba al día (sin atrasos) hace 4 meses y que actualmente registra entre 90 y 120 días de mora. Mide la tasa de deterioro directo desde situación normal hasta mora avanzada en un horizonte de 4 meses.',
+        link: { url: _U.evolPrest, label: 'Datos cartera para riesgo › Evolución cartera (importes) de préstamos' } },
+  28: { def: 'Porcentaje del saldo de Tarjeta de Crédito que se encontraba al día (sin atrasos) hace 4 meses y que actualmente registra entre 90 y 120 días de mora. Mide la tasa de deterioro directo desde situación normal hasta mora avanzada en un horizonte de 4 meses.',
+        link: { url: _U.evolTC, label: 'Datos cartera para riesgo › Evolución cartera (importes) de tarjeta' } },
+  29: { def: 'Promedio ponderado por saldo entre el Roll Rate 1-30 días de Tarjeta de Crédito y el de Préstamos. Mide la proporción del saldo total de ambos productos que pasó de estar al día a registrar entre 1 y 30 días de atraso en el mes actual.',
+        link: { url: _U.evolTotal, label: 'Datos cartera para riesgo › Evolución cartera (importes) general' } },
+  30: { def: 'Promedio ponderado por saldo entre el Roll Rate Directo 90-120 días de Tarjeta de Crédito y el de Préstamos. Mide la proporción del saldo total de ambos productos que transitó directamente desde situación normal a mora entre 90 y 120 días en un período de 4 meses.',
+        link: { url: _U.evolTotal, label: 'Datos cartera para riesgo › Evolución cartera (importes) general' } },
+  // VINTAGE
+  31: { def: '% de importe atrasado más de 90 días a los 6 meses de la cosecha de préstamo.',
+        link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (90 días)' } },
+  32: { def: '% de importe atrasado más de 90 días a los 12 meses de la cosecha de préstamo.',
+        link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (90 días)' } },
+};
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 const state = {
   raw: [],
@@ -319,6 +479,95 @@ function escapeAttr(s) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── KPI TOOLTIP ──────────────────────────────────────────────────────────────
+let _tipEl = null;
+let _tipTimer = null;
+
+function initTooltip() {
+  _tipEl = document.createElement('div');
+  _tipEl.id = 'kpi-tooltip';
+  document.body.appendChild(_tipEl);
+
+  _tipEl.addEventListener('mouseover', () => clearTimeout(_tipTimer));
+  _tipEl.addEventListener('mouseout', (e) => {
+    if (!_tipEl.contains(e.relatedTarget)) _scheduleHide();
+  });
+
+  _tipEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.ktip-sql-toggle');
+    if (!btn) return;
+    const pre = _tipEl.querySelector('.ktip-sql');
+    if (!pre) return;
+    const show = pre.style.display === 'none' || !pre.style.display;
+    pre.style.display = show ? 'block' : 'none';
+    btn.textContent = show ? 'Ocultar query' : 'Ver query';
+    if (_tipEl._anchor) _positionTip(_tipEl._anchor);
+  });
+
+  document.addEventListener('mouseover', (e) => {
+    const btn = e.target.closest('.kpi-info-btn');
+    if (!btn) return;
+    clearTimeout(_tipTimer);
+    const col = parseInt(btn.dataset.kpiCol);
+    const info = KPI_INFO[col];
+    if (!info) return;
+    _showTip(btn, info);
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const btn = e.target.closest('.kpi-info-btn');
+    if (btn && !btn.contains(e.relatedTarget)) _scheduleHide();
+  });
+
+  // Evita que el click en el ícono active la navegación de la summary-card
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.kpi-info-btn')) e.stopPropagation();
+  }, true);
+}
+
+function _scheduleHide() {
+  _tipTimer = setTimeout(() => { if (_tipEl) _tipEl.style.display = 'none'; }, 160);
+}
+
+function _showTip(anchor, info) {
+  let html = `<div class="ktip-def">${escapeHtml(info.def)}</div>`;
+  html += `<div class="ktip-source"><span class="ktip-label">Fuente: </span>`;
+  if (info.link) {
+    html += `<a class="ktip-link" href="${escapeAttr(info.link.url)}" target="_blank" rel="noopener">${escapeHtml(info.link.label)}</a>`;
+  }
+  if (info.sql) {
+    if (info.link) html += ` · `;
+    html += `<button class="ktip-sql-toggle">Ver query</button>`;
+  }
+  html += `</div>`;
+  if (info.sql) {
+    html += `<pre class="ktip-sql" style="display:none"></pre>`;
+  }
+  _tipEl.innerHTML = html;
+  if (info.sql) _tipEl.querySelector('.ktip-sql').textContent = info.sql;
+  _tipEl._anchor = anchor;
+  _tipEl.style.display = 'block';
+  _positionTip(anchor);
+}
+
+function _positionTip(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const tipW = _tipEl.offsetWidth;
+  const tipH = _tipEl.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let top = rect.bottom + 6;
+  let left = rect.left;
+  if (left + tipW > vw - 8) left = vw - tipW - 8;
+  if (top + tipH > vh - 8) top = rect.top - tipH - 6;
+  _tipEl.style.top = Math.max(8, top) + 'px';
+  _tipEl.style.left = Math.max(8, left) + 'px';
+}
+
 function deltaClass(delta, higherIsBetter) {
   if (delta === null) return 'neutral';
   if (higherIsBetter === null) return 'neutral';
@@ -349,12 +598,15 @@ function renderHome() {
     const tip  = escapeAttr(semaphoreTitle(hero, stats, dM));
     const spark = getLast12(data, hero.col);
 
+    const heroInfoBtn = KPI_INFO[hero.col]
+      ? `<button class="kpi-info-btn" data-kpi-col="${hero.col}" aria-label="Información">i</button>`
+      : '';
     html += `
       <div class="summary-card" data-tab="${cat.id}">
         <div class="cat-label">${cat.name}</div>
         <div class="kpi-card-header">
           <div class="kpi-name">${hero.name}</div>
-          <div class="semaphore ${sm}" title="${tip}"></div>
+          <div class="kpi-header-right">${heroInfoBtn}<div class="semaphore ${sm}" title="${tip}"></div></div>
         </div>
         <div class="kpi-value">${fmtVal(last, hero.fmt)}</div>
         <div class="kpi-deltas">
@@ -420,12 +672,15 @@ function renderKPICard(kpi, data) {
   const sm    = semaphoreColor(last, kpi, stats, dM);
   const tip   = escapeAttr(semaphoreTitle(kpi, stats, dM));
   const dY    = getDelta(last, yoy, kpi.fmt);
+  const infoBtn = KPI_INFO[kpi.col]
+    ? `<button class="kpi-info-btn" data-kpi-col="${kpi.col}" aria-label="Información">i</button>`
+    : '';
 
   return `
     <div class="kpi-card">
       <div class="kpi-card-header">
         <div class="kpi-name">${kpi.name}</div>
-        <div class="semaphore ${sm}" title="${tip}"></div>
+        <div class="kpi-header-right">${infoBtn}<div class="semaphore ${sm}" title="${tip}"></div></div>
       </div>
       <div class="kpi-value">${fmtVal(last, kpi.fmt)}</div>
       <div class="kpi-deltas">
@@ -681,6 +936,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       overlay.classList.remove('show');
     });
   }
+
+  initTooltip();
 
   // Fetch data
   try {
