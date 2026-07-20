@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Dashboard KPI — Gerencia Financiera — Riesgo y Recupero
+   Dashboard KPI — Gerencia Financiera — Riesgo y Recupero v2
    ========================================================================== */
 'use strict';
 
