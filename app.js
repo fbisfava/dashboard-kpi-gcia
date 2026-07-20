@@ -21,12 +21,12 @@ const CATEGORIES = [
   {
     id: 'cobranza', name: 'Cobranza', icon: 'C',
     kpis: [
-      { name: 'Cobranza TC mes sin PP',      col: 1,  fmt: 'pct', up: true,  th: [0.85, 0.70] },
-      { name: 'Cobranza TC mes con PP',       col: 2,  fmt: 'pct', up: true,  th: [0.90, 0.75] },
-      { name: 'Cobranza del mes total',       col: 3,  fmt: 'pct', up: true,  th: [0.90, 0.75], hero: true },
-      { name: 'Cobranza TC 90 días sin PP',   col: 4,  fmt: 'pct', up: true,  th: [0.85, 0.70] },
-      { name: 'Cobranza TC 90 días con PP',   col: 5,  fmt: 'pct', up: true,  th: [0.90, 0.75] },
-      { name: 'Cobranza 90 días total',       col: 6,  fmt: 'pct', up: true,  th: [0.90, 0.75] },
+      { name: 'Cobranza Mes Sin PP',       col: 1,  fmt: 'pct', up: true,  th: [0.85, 0.70] },
+      { name: 'Cobranza Mes Con PP',       col: 2,  fmt: 'pct', up: true,  th: [0.90, 0.75] },
+      { name: 'Cobranza del mes promedio', col: 3,  fmt: 'pct', up: true,  th: [0.90, 0.75], hero: true },
+      { name: 'Cobranza 90 dias Sin PP',   col: 4,  fmt: 'pct', up: true,  th: [0.85, 0.70] },
+      { name: 'Cobranza 90 dias Con PP',   col: 5,  fmt: 'pct', up: true,  th: [0.90, 0.75] },
+      { name: 'Cobranza 90 dias promedio', col: 6,  fmt: 'pct', up: true,  th: [0.90, 0.75] },
     ]
   },
   {
