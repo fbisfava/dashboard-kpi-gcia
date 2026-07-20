@@ -197,17 +197,17 @@ ORDER BY [Mes pase a AB] ASC;`;
 
 const KPI_INFO = {
   // COBRANZA
-  1:  { def: '% importe cobrado del mes de cuentas con tarjeta de crédito y sin préstamo activo.',
+  1:  { def: '% importe cobrado del mes de cuentas sin préstamo activo.',
         link: { url: _U.cob, label: 'Cobranza segmentada › Mes › Sin PP' } },
-  2:  { def: '% cobrado del mes de cuentas con tarjeta de crédito y préstamo activo.',
+  2:  { def: '% cobrado del mes de cuentas con préstamo activo.',
         link: { url: _U.cob, label: 'Cobranza segmentada › Mes › Con PP' } },
-  3:  { def: '% importe cobrado promedio ponderado entre cobranza del mes de cuentas sin préstamo personal —solo tarjeta de crédito— y cuentas con préstamo y tarjeta de crédito.',
+  3:  { def: '% importe cobrado promedio ponderado entre cobranza del mes de cuentas sin préstamo personal y cuentas con préstamo.',
         link: { url: _U.cob, label: 'Cobranza segmentada › MES › Total' } },
-  4:  { def: '% importe cobrado de cuentas con tarjeta de crédito sin préstamo activo, pasados 90 días del mes de emisión del resumen.',
+  4:  { def: '% importe cobrado de cuentas sin préstamo activo pasados 90 días del mes de emisión del resumen.',
         link: { url: _U.cob, label: 'Cobranza segmentada › 90 días › Sin PP' } },
-  5:  { def: '% importe cobrado de cuentas con tarjeta de crédito y préstamo activo, pasados 90 días del mes de emisión del resumen.',
+  5:  { def: '% importe cobrado de cuentas con préstamo activo pasados 90 días del mes de emisión del resumen.',
         link: { url: _U.cob, label: 'Cobranza segmentada › 90 días › Con PP' } },
-  6:  { def: '% importe cobrado promedio ponderado entre cobranza 90 días de cuentas sin préstamo personal —solo tarjeta de crédito— y cuentas con préstamo y tarjeta de crédito.',
+  6:  { def: '% importe cobrado promedio ponderado entre cobranza 90 días de cuentas sin préstamo personal y cuentas con préstamo activo.',
         link: { url: _U.cob, label: 'Cobranza segmentada › 90 días › Total' } },
   // MOROSIDAD — TC (tabla TC + PF)
   7:  { def: 'Proporción del saldo total de Tarjeta de Crédito que se encuentra en situación de mora entre 1 y 60 días (tramos 0-30 y 30-60 días). Se calcula como la suma de los saldos en esos tramos dividido el saldo total de cartera TC al cierre del mes.',
