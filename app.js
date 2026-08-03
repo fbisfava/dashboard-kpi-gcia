@@ -256,6 +256,8 @@ const KPI_INFO = {
         link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (90 días)' } },
   32: { def: '% de importe atrasado más de 90 días a los 12 meses de la cosecha de préstamo.',
         link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (90 días)' } },
+  // ORIGINACIÓN (SIISA)
+  43: { def: 'Cantidad de altas de clientes dividido cantidad de informes Veraz consumidos.' },
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -543,15 +545,17 @@ function _scheduleHide() {
 
 function _showTip(anchor, info) {
   let html = `<div class="ktip-def">${escapeHtml(info.def)}</div>`;
-  html += `<div class="ktip-source"><span class="ktip-label">Fuente: </span>`;
-  if (info.link) {
-    html += `<a class="ktip-link" href="${escapeAttr(info.link.url)}" target="_blank" rel="noopener">${escapeHtml(info.link.label)}</a>`;
+  if (info.link || info.sql) {
+    html += `<div class="ktip-source"><span class="ktip-label">Fuente: </span>`;
+    if (info.link) {
+      html += `<a class="ktip-link" href="${escapeAttr(info.link.url)}" target="_blank" rel="noopener">${escapeHtml(info.link.label)}</a>`;
+    }
+    if (info.sql) {
+      if (info.link) html += ` · `;
+      html += `<button class="ktip-sql-toggle">Ver query</button>`;
+    }
+    html += `</div>`;
   }
-  if (info.sql) {
-    if (info.link) html += ` · `;
-    html += `<button class="ktip-sql-toggle">Ver query</button>`;
-  }
-  html += `</div>`;
   if (info.sql) {
     html += `<pre class="ktip-sql" style="display:none"></pre>`;
   }
