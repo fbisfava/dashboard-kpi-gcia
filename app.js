@@ -46,8 +46,8 @@ const CATEGORIES = [
     id: 'cuentas', name: 'Cuentas y Cartera', icon: 'CC',
     kpis: [
       { name: 'Cuentas inhabilitadas o DV',  col: 15, fmt: 'int',   up: false, th: [500, 1000] },
-      { name: 'Cuentas habilitadas',          col: 16, fmt: 'int',   up: true,  th: [10000, 5000] },
-      { name: 'Cuentas totales',              col: 17, fmt: 'int',   up: true,  th: [15000, 8000] },
+      { name: 'Cuentas habilitadas',          col: 16, fmt: 'int',   up: true,  th: [10000, 5000], floor: 90000 },
+      { name: 'Cuentas totales',              col: 17, fmt: 'int',   up: true,  th: [15000, 8000], floor: 102000 },
       { name: 'Ratio IH sobre totales',       col: 18, fmt: 'pct',  up: false, th: [0.05, 0.10], hero: true },
       { name: 'Q clientes que pasan a AB',    col: 19, fmt: 'int',   up: false, th: [50, 100] },
       { name: 'Monto que pasa a AB',          col: 20, fmt: 'money', up: false, th: [5000000, 15000000] },
@@ -438,8 +438,13 @@ function badVelocity(kpi, mmDelta) {
   return kpi.up ? mmDelta < -0.015 : mmDelta > 0.015;
 }
 
+function breachesFloor(val, kpi) {
+  return kpi.floor !== undefined && val !== null && val < kpi.floor;
+}
+
 function semaphoreColor(val, kpi, stats, mmDelta) {
   if (val === null || kpi.up === null) return 'gray';
+  if (breachesFloor(val, kpi)) return 'red';
   if (!stats) {
     return badVelocity(kpi, mmDelta) ? 'yellow' : 'gray';
   }
@@ -456,21 +461,24 @@ function semaphoreColor(val, kpi, stats, mmDelta) {
 
 function semaphoreTitle(kpi, stats, mmDelta) {
   if (kpi.up === null) return 'Sin umbral automático (requiere criterio de gestión)';
+  const f = v => fmtVal(v, kpi.fmt);
   const velocityLine = badVelocity(kpi, mmDelta)
     ? `Variación m/m: ${mmDelta >= 0 ? '+' : ''}${(mmDelta * 100).toFixed(2)}pp — supera 1.5pp`
     : null;
+  const floorLine = kpi.floor !== undefined ? `Piso de negocio: ${f(kpi.floor)}` : null;
   if (!stats) {
     const lines = ['Datos insuficientes para calcular SMA (menos de 4 períodos)'];
+    if (floorLine) lines.push(floorLine);
     if (velocityLine) lines.push(velocityLine);
     return lines.join('\n');
   }
   const { sma, sd, n } = stats;
-  const f = v => fmtVal(v, kpi.fmt);
   const lines = [
     `SMA${n} = ${f(sma)}`,
     kpi.up ? `Alerta (−1 DS): ${f(sma - sd)}` : `Alerta (+1 DS): ${f(sma + sd)}`,
     kpi.up ? `Crítico (−2 DS): ${f(sma - 2 * sd)}` : `Crítico (+2 DS): ${f(sma + 2 * sd)}`,
   ];
+  if (floorLine) lines.push(floorLine);
   if (velocityLine) lines.push(velocityLine);
   return lines.join('\n');
 }
