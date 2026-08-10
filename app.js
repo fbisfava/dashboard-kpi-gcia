@@ -51,8 +51,16 @@ const CATEGORIES = [
       { name: 'Ratio IH sobre totales',       col: 18, fmt: 'pct',  up: false, th: [0.05, 0.10], hero: true },
       { name: 'Q clientes que pasan a AB',    col: 19, fmt: 'int',   up: false, th: [50, 100] },
       { name: 'Monto que pasa a AB',          col: 20, fmt: 'money', up: false, th: [5000000, 15000000] },
-      { name: 'Q de refinanciaciones',        col: 21, fmt: 'int',   up: null,  th: null },
-      { name: 'Score Veraz promedio',          col: 24, fmt: 'num',   up: true,  th: [600, 500] },
+      { name: 'Q de refinanciaciones',                    col: 21, fmt: 'int',  up: null  },
+      { name: 'Score Veraz promedio',                      col: 24, fmt: 'num',  up: true  },
+      { name: 'Score Veraz promedio refinanciaciones',     col: 44, fmt: 'num',  up: true  },
+      { name: 'FPD Refinanciaciones',                      col: 45, fmt: 'int',  up: false },
+      { name: '% FPD refinanciaciones',                    col: 46, fmt: 'pct',  up: false },
+      { name: 'Q préstamos',                               col: 47, fmt: 'int',  up: null  },
+      { name: 'FPD préstamos',                             col: 48, fmt: 'int',  up: false },
+      { name: '% FPD préstamos',                           col: 49, fmt: 'pct',  up: false },
+      { name: 'Cuentas con préstamo activo',               col: 50, fmt: 'int',  up: true  },
+      { name: '% cuentas hab. con préstamo activo',        col: 51, fmt: 'pct',  up: true,  fixedTh: { green: 0.25, yellow: 0.20 } },
     ]
   },
   {
@@ -64,13 +72,24 @@ const CATEGORIES = [
       { name: 'RR Directo 90-120d Préstamos',   col: 27, fmt: 'pct', up: false, th: [0.05, 0.15] },
       { name: 'RR Directo 90-120d TC',           col: 28, fmt: 'pct', up: false, th: [0.05, 0.15] },
       { name: 'RR Directo 90-120d Total',        col: 30, fmt: 'pct', up: false, th: [0.05, 0.15] },
+      { name: 'Tasa de cura préstamos T2',        col: 52, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura TC T2',               col: 53, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura refin. T2',           col: 54, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura préstamos T3',        col: 55, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura TC T3',               col: 56, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura refin. T3',           col: 57, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura préstamos T4',        col: 58, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura TC T4',               col: 59, fmt: 'pct', up: true  },
+      { name: 'Tasa de cura refin. T4',           col: 60, fmt: 'pct', up: true  },
     ]
   },
   {
     id: 'vintage', name: 'Vintage', icon: 'V',
     kpis: [
-      { name: 'Vintage >90 prést. a 6 meses',   col: 31, fmt: 'pct', up: false, th: [0.03, 0.06], hero: true },
-      { name: 'Vintage >90 prést. a 12 meses',  col: 32, fmt: 'pct', up: false, th: [0.05, 0.10] },
+      { name: 'Vintage >90 prést. a 6 meses',    col: 31, fmt: 'pct', up: false, th: [0.03, 0.06], hero: true },
+      { name: 'Vintage >90 prést. a 12 meses',   col: 32, fmt: 'pct', up: false, th: [0.05, 0.10] },
+      { name: 'Vintage >30 prést. a 6 meses',    col: 66, fmt: 'pct', up: false },
+      { name: 'Vintage >30 prést. a 12 meses',   col: 67, fmt: 'pct', up: false },
     ]
   },
   {
@@ -87,6 +106,11 @@ const CATEGORIES = [
       { name: 'Tasa Rechazo Préstamo',               col: 41, fmt: 'pct', up: false, th: [0.40, 0.60] },
       { name: 'Rechazos Política Zonas Prést.',     col: 42, fmt: 'int', up: false, th: [20, 50] },
       { name: 'Tasa de conversión Veraz',            col: 43, fmt: 'pct', up: true,  th: null },
+      { name: 'Cantidad de altas en el mes',          col: 61, fmt: 'int', up: true  },
+      { name: 'Altas sobre aprobados',                col: 62, fmt: 'pct', up: true  },
+      { name: 'Altas TC',                             col: 63, fmt: 'int', up: true  },
+      { name: 'Altas SPP',                            col: 64, fmt: 'int', up: true  },
+      { name: '% altas TC con uso en primer mes',     col: 65, fmt: 'pct', up: true  },
     ]
   }
 ];
@@ -446,6 +470,12 @@ function breachesFloor(val, kpi) {
 
 function semaphoreColor(val, kpi, stats, mmDelta) {
   if (val === null || kpi.up === null) return 'gray';
+  if (kpi.fixedTh) {
+    const { green, yellow } = kpi.fixedTh;
+    return kpi.up
+      ? (val >= green ? 'green' : val >= yellow ? 'yellow' : 'red')
+      : (val <= green ? 'green' : val <= yellow ? 'yellow' : 'red');
+  }
   if (breachesFloor(val, kpi)) return 'red';
   if (!stats) {
     return badVelocity(kpi, mmDelta) ? 'yellow' : 'gray';
@@ -464,6 +494,12 @@ function semaphoreColor(val, kpi, stats, mmDelta) {
 function semaphoreTitle(kpi, stats, mmDelta) {
   if (kpi.up === null) return 'Sin umbral automático (requiere criterio de gestión)';
   const f = v => fmtVal(v, kpi.fmt);
+  if (kpi.fixedTh) {
+    const { green, yellow } = kpi.fixedTh;
+    return kpi.up
+      ? `Objetivo de negocio\nVerde: ≥ ${f(green)}\nAmarillo: ${f(yellow)} – ${f(green - 0.0001)}\nRojo: < ${f(yellow)}`
+      : `Objetivo de negocio\nVerde: ≤ ${f(green)}\nAmarillo: ${f(green)} – ${f(yellow - 0.0001)}\nRojo: > ${f(yellow)}`;
+  }
   const velocityLine = badVelocity(kpi, mmDelta)
     ? `Variación m/m: ${mmDelta >= 0 ? '+' : ''}${(mmDelta * 100).toFixed(2)}pp — supera 1.5pp`
     : null;
