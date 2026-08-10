@@ -719,7 +719,7 @@ function renderHome() {
     </div>`;
 
   html += '</div>';
-  html += buildAltasPieSection(data);
+  html += buildAltasPieSection(data, true);
   el('content').innerHTML = html;
 
   document.querySelectorAll('.summary-card:not(.extra-card)').forEach(card => {
@@ -1002,7 +1002,7 @@ const COL_ALTAS_TC  = 63;
 const COL_ALTAS_SPP = 64;
 let _altasPie = null;
 
-function buildAltasPieSection(data) {
+function buildAltasPieSection(data, showFpdRefin = false) {
   const months = data.filter(d => d.vals[COL_ALTAS_TC] != null && d.vals[COL_ALTAS_SPP] != null);
   if (!months.length) return '';
   const opts = months.map(d => `<option value="${d.label}">${d.label}</option>`).join('');
@@ -1017,6 +1017,20 @@ function buildAltasPieSection(data) {
   const fpdRStats = computeSMA12(data, 45);
   const fpdRSm    = semaphoreColor(fpdR, fpdRKpi, fpdRStats, fpdRdM);
   const fpdRTip   = escapeAttr(semaphoreTitle(fpdRKpi, fpdRStats, fpdRdM));
+
+  const fpdRefinCard = showFpdRefin ? `
+        <div class="kpi-card pie-side-kpi-card">
+          <div class="kpi-card-header">
+            <div class="kpi-name">FPD Refinanciaciones</div>
+            <div class="kpi-header-right"><div class="semaphore ${fpdRSm}" title="${fpdRTip}"></div></div>
+          </div>
+          <div class="kpi-value">${fmtVal(fpdR, 'int')}</div>
+          <div class="kpi-deltas">
+            ${deltaTag(fpdRdM, false, 'm/m', 'int')}
+            ${deltaTag(fpdRdY, false, 'a/a', 'int')}
+          </div>
+          <div class="sparkline-container"><canvas id="sparkline-fpd-refin"></canvas></div>
+        </div>` : '';
 
   return `
     <div class="charts-section">
@@ -1038,18 +1052,7 @@ function buildAltasPieSection(data) {
             </div>
           </div>
         </div>
-        <div class="kpi-card pie-side-kpi-card">
-          <div class="kpi-card-header">
-            <div class="kpi-name">FPD Refinanciaciones</div>
-            <div class="kpi-header-right"><div class="semaphore ${fpdRSm}" title="${fpdRTip}"></div></div>
-          </div>
-          <div class="kpi-value">${fmtVal(fpdR, 'int')}</div>
-          <div class="kpi-deltas">
-            ${deltaTag(fpdRdM, false, 'm/m', 'int')}
-            ${deltaTag(fpdRdY, false, 'a/a', 'int')}
-          </div>
-          <div class="sparkline-container"><canvas id="sparkline-fpd-refin"></canvas></div>
-        </div>
+        ${fpdRefinCard}
       </div>
     </div>`;
 }
