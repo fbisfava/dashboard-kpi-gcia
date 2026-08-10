@@ -686,7 +686,13 @@ function renderCategory(catId) {
   const data = state.filtered;
   if (!data.length) { el('content').innerHTML = '<div class="no-data">No hay datos disponibles.</div>'; return; }
 
-  let html = '<div class="kpi-grid">';
+  let html = '';
+
+  if (catId === 'originacion') {
+    html += buildAltasPieSection(data);
+  }
+
+  html += '<div class="kpi-grid">';
   for (const kpi of cat.kpis) {
     html += renderKPICard(kpi, data);
   }
@@ -697,10 +703,6 @@ function renderCategory(catId) {
     html += `<div class="chart-box"><h3>${kpi.name}</h3><div class="chart-wrapper"><canvas id="chart-${kpi.col}"></canvas></div></div>`;
   }
   html += '</div></div>';
-
-  if (catId === 'originacion') {
-    html += buildAltasPieSection(data);
-  }
 
   el('content').innerHTML = html;
 
@@ -954,7 +956,7 @@ function drawAltasPie(data) {
       labels: ['Altas TC', 'Altas SPP'],
       datasets: [{
         data: [tc, spp],
-        backgroundColor: ['#CC0000', '#06b6d4'],
+        backgroundColor: ['#CC0000', '#9ca3af'],
         borderWidth: 2,
         borderColor: '#1e1e1e'
       }]
