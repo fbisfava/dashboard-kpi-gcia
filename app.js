@@ -44,43 +44,64 @@ const CATEGORIES = [
   },
   {
     id: 'cuentas', name: 'Cuentas y Cartera', icon: 'CC',
-    kpis: [
-      { name: 'Cuentas inhabilitadas o DV',  col: 15, fmt: 'int',   up: false, th: [500, 1000] },
-      { name: 'Cuentas habilitadas',          col: 16, fmt: 'int',   up: true,  th: [10000, 5000], floor: 90000 },
-      { name: 'Cuentas totales',              col: 17, fmt: 'int',   up: true,  th: [15000, 8000], floor: 102000 },
-      { name: 'Ratio IH sobre totales',       col: 18, fmt: 'pct',  up: false, th: [0.05, 0.10], hero: true },
-      { name: 'Q clientes que pasan a AB',    col: 19, fmt: 'int',   up: false, th: [50, 100] },
-      { name: 'Monto que pasa a AB',          col: 20, fmt: 'money', up: false, th: [5000000, 15000000] },
-      { name: 'Q de refinanciaciones',                    col: 21, fmt: 'int',  up: null  },
-      { name: 'Score Veraz promedio',                      col: 24, fmt: 'num',  up: true  },
-      { name: 'Score Veraz promedio refinanciaciones',     col: 44, fmt: 'num',  up: true  },
-      { name: 'FPD Refinanciaciones',                      col: 45, fmt: 'int',  up: false },
-      { name: '% FPD refinanciaciones',                    col: 46, fmt: 'pct',  up: false },
-      { name: 'Q préstamos',                               col: 47, fmt: 'int',  up: null  },
-      { name: 'FPD préstamos',                             col: 48, fmt: 'int',  up: false },
-      { name: '% FPD préstamos',                           col: 49, fmt: 'pct',  up: false },
-      { name: 'Cuentas con préstamo activo',               col: 50, fmt: 'int',  up: true  },
-      { name: '% cuentas hab. con préstamo activo',        col: 51, fmt: 'pct',  up: true,  fixedTh: { green: 0.25, yellow: 0.20 } },
+    hero: { col: 18, fmt: 'pct', up: false, th: [0.05, 0.10] },
+    groups: [
+      {
+        id: 'base', name: 'Cuentas',
+        kpis: [
+          { name: 'Cuentas inhabilitadas o DV',  col: 15, fmt: 'int',   up: false, th: [500, 1000] },
+          { name: 'Cuentas habilitadas',          col: 16, fmt: 'int',   up: true,  th: [10000, 5000], floor: 90000 },
+          { name: 'Cuentas totales',              col: 17, fmt: 'int',   up: true,  th: [15000, 8000], floor: 102000 },
+          { name: 'Ratio IH sobre totales',       col: 18, fmt: 'pct',  up: false, th: [0.05, 0.10], hero: true },
+          { name: 'Q clientes que pasan a AB',    col: 19, fmt: 'int',   up: false, th: [50, 100] },
+          { name: 'Monto que pasa a AB',          col: 20, fmt: 'money', up: false, th: [5000000, 15000000] },
+          { name: 'Score Veraz promedio',          col: 24, fmt: 'num',  up: true  },
+        ]
+      },
+      {
+        id: 'refin', name: 'Refinanciaciones',
+        kpis: [
+          { name: 'Q de refinanciaciones',                col: 21, fmt: 'int', up: null },
+          { name: 'Score Veraz promedio refinanciaciones', col: 44, fmt: 'num', up: true },
+          { name: 'FPD Refinanciaciones',                 col: 45, fmt: 'int', up: false },
+          { name: '% FPD refinanciaciones',               col: 46, fmt: 'pct', up: false },
+        ]
+      },
+      {
+        id: 'prestamos', name: 'Préstamos',
+        kpis: [
+          { name: 'Q préstamos',                          col: 47, fmt: 'int', up: null },
+          { name: 'FPD préstamos',                        col: 48, fmt: 'int', up: false },
+          { name: '% FPD préstamos',                      col: 49, fmt: 'pct', up: false },
+          { name: 'Cuentas con préstamo activo',          col: 50, fmt: 'int', up: true },
+          { name: '% cuentas hab. con préstamo activo',   col: 51, fmt: 'pct', up: true, fixedTh: { green: 0.25, yellow: 0.20 } },
+        ]
+      },
+      {
+        id: 'cura', name: 'Tasas de cura',
+        kpis: [
+          { name: 'Tasa de cura préstamos T2', col: 52, fmt: 'pct', up: true },
+          { name: 'Tasa de cura TC T2',        col: 53, fmt: 'pct', up: true },
+          { name: 'Tasa de cura refin. T2',    col: 54, fmt: 'pct', up: true },
+          { name: 'Tasa de cura préstamos T3', col: 55, fmt: 'pct', up: true },
+          { name: 'Tasa de cura TC T3',        col: 56, fmt: 'pct', up: true },
+          { name: 'Tasa de cura refin. T3',    col: 57, fmt: 'pct', up: true },
+          { name: 'Tasa de cura préstamos T4', col: 58, fmt: 'pct', up: true },
+          { name: 'Tasa de cura TC T4',        col: 59, fmt: 'pct', up: true },
+          { name: 'Tasa de cura refin. T4',    col: 60, fmt: 'pct', up: true },
+        ]
+      },
     ]
   },
   {
     id: 'rollrates', name: 'Roll Rates', icon: 'RR',
     kpis: [
-      { name: 'RR 1-30 Préstamos',              col: 25, fmt: 'pct', up: false, th: [0.10, 0.20] },
-      { name: 'RR 1-30 TC',                     col: 26, fmt: 'pct', up: false, th: [0.10, 0.20] },
-      { name: 'RR 1-30 Total',                  col: 29, fmt: 'pct', up: false, th: [0.10, 0.20], hero: true },
-      { name: 'RR Directo 90-120d Préstamos',   col: 27, fmt: 'pct', up: false, th: [0.05, 0.15] },
-      { name: 'RR Directo 90-120d TC',           col: 28, fmt: 'pct', up: false, th: [0.05, 0.15] },
-      { name: 'RR Directo 90-120d Total',        col: 30, fmt: 'pct', up: false, th: [0.05, 0.15] },
-      { name: 'Tasa de cura préstamos T2',        col: 52, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura TC T2',               col: 53, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura refin. T2',           col: 54, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura préstamos T3',        col: 55, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura TC T3',               col: 56, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura refin. T3',           col: 57, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura préstamos T4',        col: 58, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura TC T4',               col: 59, fmt: 'pct', up: true  },
-      { name: 'Tasa de cura refin. T4',           col: 60, fmt: 'pct', up: true  },
+      { name: 'RR 1-30 Préstamos',            col: 25, fmt: 'pct', up: false, th: [0.10, 0.20] },
+      { name: 'RR 1-30 TC',                   col: 26, fmt: 'pct', up: false, th: [0.10, 0.20] },
+      { name: 'RR 1-30 Total',                col: 29, fmt: 'pct', up: false, th: [0.10, 0.20], hero: true },
+      { name: 'RR Directo 90-120d Préstamos', col: 27, fmt: 'pct', up: false, th: [0.05, 0.15] },
+      { name: 'RR Directo 90-120d TC',        col: 28, fmt: 'pct', up: false, th: [0.05, 0.15] },
+      { name: 'RR Directo 90-120d Total',     col: 30, fmt: 'pct', up: false, th: [0.05, 0.15] },
     ]
   },
   {
@@ -93,24 +114,29 @@ const CATEGORIES = [
     ]
   },
   {
-    id: 'originacion', name: 'Originación (SIISA)', icon: 'O',
+    id: 'altas', name: 'Altas', icon: 'A',
     kpis: [
-      { name: 'N° Solicitantes General',           col: 33, fmt: 'int', up: true,  th: [1000, 500] },
-      { name: 'Tasa Aprobación General',            col: 34, fmt: 'pct', up: true,  th: [0.50, 0.35], hero: true },
-      { name: 'Tasa Rechazo General',               col: 35, fmt: 'pct', up: false, th: [0.40, 0.60] },
-      { name: 'N° Solicitantes Tarjeta',            col: 36, fmt: 'int', up: true,  th: [500, 250] },
-      { name: 'Tasa Aprobación Tarjeta',             col: 37, fmt: 'pct', up: true,  th: [0.50, 0.35] },
-      { name: 'Tasa Rechazo Tarjeta',                col: 38, fmt: 'pct', up: false, th: [0.40, 0.60] },
-      { name: 'N° Solicitantes Préstamo',           col: 39, fmt: 'int', up: true,  th: [500, 250] },
-      { name: 'Tasa Aprobación Préstamo',            col: 40, fmt: 'pct', up: true,  th: [0.50, 0.35] },
-      { name: 'Tasa Rechazo Préstamo',               col: 41, fmt: 'pct', up: false, th: [0.40, 0.60] },
-      { name: 'Rechazos Política Zonas Prést.',     col: 42, fmt: 'int', up: false, th: [20, 50] },
-      { name: 'Tasa de conversión Veraz',            col: 43, fmt: 'pct', up: true,  th: null },
-      { name: 'Cantidad de altas en el mes',          col: 61, fmt: 'int', up: true  },
-      { name: 'Altas sobre aprobados',                col: 62, fmt: 'pct', up: true  },
-      { name: 'Altas TC',                             col: 63, fmt: 'int', up: true  },
-      { name: 'Altas SPP',                            col: 64, fmt: 'int', up: true  },
-      { name: '% altas TC con uso en primer mes',     col: 65, fmt: 'pct', up: true  },
+      { name: 'Cantidad de altas en el mes',      col: 61, fmt: 'int', up: true, hero: true },
+      { name: 'Altas sobre aprobados',            col: 62, fmt: 'pct', up: true },
+      { name: 'Altas TC',                         col: 63, fmt: 'int', up: true },
+      { name: 'Altas SPP',                        col: 64, fmt: 'int', up: true },
+      { name: '% altas TC con uso en primer mes', col: 65, fmt: 'pct', up: true },
+    ]
+  },
+  {
+    id: 'siisa', name: 'Originación SIISA', icon: 'OS',
+    kpis: [
+      { name: 'N° Solicitantes General',       col: 33, fmt: 'int', up: true,  th: [1000, 500] },
+      { name: 'Tasa Aprobación General',       col: 34, fmt: 'pct', up: true,  th: [0.50, 0.35], hero: true },
+      { name: 'Tasa Rechazo General',          col: 35, fmt: 'pct', up: false, th: [0.40, 0.60] },
+      { name: 'N° Solicitantes Tarjeta',       col: 36, fmt: 'int', up: true,  th: [500, 250] },
+      { name: 'Tasa Aprobación Tarjeta',       col: 37, fmt: 'pct', up: true,  th: [0.50, 0.35] },
+      { name: 'Tasa Rechazo Tarjeta',          col: 38, fmt: 'pct', up: false, th: [0.40, 0.60] },
+      { name: 'N° Solicitantes Préstamo',      col: 39, fmt: 'int', up: true,  th: [500, 250] },
+      { name: 'Tasa Aprobación Préstamo',      col: 40, fmt: 'pct', up: true,  th: [0.50, 0.35] },
+      { name: 'Tasa Rechazo Préstamo',         col: 41, fmt: 'pct', up: false, th: [0.40, 0.60] },
+      { name: 'Rechazos Política Zonas Prést.', col: 42, fmt: 'int', up: false, th: [20, 50] },
+      { name: 'Tasa de conversión Veraz',      col: 43, fmt: 'pct', up: true,  th: null },
     ]
   }
 ];
@@ -289,7 +315,8 @@ const state = {
   raw: [],
   filtered: [],
   tab: 'home',
-  charts: []
+  charts: [],
+  subTabs: {}
 };
 
 // ─── DATA LAYER ───────────────────────────────────────────────────────────────
@@ -367,7 +394,8 @@ function parseCSV(text) {
   // vienen como 84.48 en vez de 0.8448 → dividir por 100.
   const pctCols = new Set();
   for (const cat of CATEGORIES) {
-    for (const kpi of cat.kpis) {
+    const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
+    for (const kpi of allKpis) {
       if (kpi.fmt === 'pct') pctCols.add(kpi.col);
     }
   }
@@ -635,7 +663,8 @@ function renderHome() {
 
   let html = '<div class="home-grid">';
   for (const cat of CATEGORIES) {
-    const hero = cat.kpis.find(k => k.hero) || cat.kpis[0];
+    const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
+    const hero = allKpis.find(k => k.hero) || allKpis[0];
     const last = getLastVal(data, hero.col);
     const prev = getPrevVal(data, hero.col);
     const yoy  = getYoYVal(data, hero.col);
@@ -665,6 +694,7 @@ function renderHome() {
       </div>`;
   }
   html += '</div>';
+  html += buildAltasPieSection(data);
   el('content').innerHTML = html;
 
   document.querySelectorAll('.summary-card').forEach(card => {
@@ -673,10 +703,13 @@ function renderHome() {
 
   document.querySelectorAll('.summary-card .sparkline-container canvas').forEach((canvas, i) => {
     const cat = CATEGORIES[i];
-    const hero = cat.kpis.find(k => k.hero) || cat.kpis[0];
+    const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
+    const hero = allKpis.find(k => k.hero) || allKpis[0];
     const spark = getLast12(data, hero.col);
     createSparkline(canvas, spark);
   });
+
+  initAltasPie(data);
 }
 
 // ─── RENDERING: CATEGORY ─────────────────────────────────────────────────────
@@ -686,37 +719,63 @@ function renderCategory(catId) {
   const data = state.filtered;
   if (!data.length) { el('content').innerHTML = '<div class="no-data">No hay datos disponibles.</div>'; return; }
 
-  let html = '';
+  // Resolve active KPIs (groups or flat list)
+  let kpis;
+  let subTabHtml = '';
+  if (cat.groups) {
+    const activeId = state.subTabs[catId] || cat.groups[0].id;
+    const activeGroup = cat.groups.find(g => g.id === activeId) || cat.groups[0];
+    kpis = activeGroup.kpis;
+    subTabHtml = `<div class="subtab-bar">` +
+      cat.groups.map(g =>
+        `<button class="subtab${g.id === activeGroup.id ? ' active' : ''}" data-group="${g.id}">${g.name}</button>`
+      ).join('') +
+      `</div>`;
+  } else {
+    kpis = cat.kpis;
+  }
 
-  if (catId === 'originacion') {
+  let html = subTabHtml;
+
+  if (catId === 'altas') {
     html += buildAltasPieSection(data);
   }
 
   html += '<div class="kpi-grid">';
-  for (const kpi of cat.kpis) {
+  for (const kpi of kpis) {
     html += renderKPICard(kpi, data);
   }
   html += '</div>';
 
   html += '<div class="charts-section"><h2 class="section-title">Serie Histórica</h2><div class="chart-grid">';
-  for (const kpi of cat.kpis) {
+  for (const kpi of kpis) {
     html += `<div class="chart-box"><h3>${kpi.name}</h3><div class="chart-wrapper"><canvas id="chart-${kpi.col}"></canvas></div></div>`;
   }
   html += '</div></div>';
 
   el('content').innerHTML = html;
 
+  // Sub-tab click handlers
+  if (cat.groups) {
+    el('content').querySelectorAll('.subtab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.subTabs[catId] = btn.dataset.group;
+        destroyCharts();
+        renderCategory(catId);
+      });
+    });
+  }
+
   document.querySelectorAll('.kpi-card .sparkline-container canvas').forEach((canvas, i) => {
-    const kpi = cat.kpis[i];
-    createSparkline(canvas, getLast12(data, kpi.col));
+    if (kpis[i]) createSparkline(canvas, getLast12(data, kpis[i].col));
   });
 
-  for (const kpi of cat.kpis) {
+  for (const kpi of kpis) {
     const canvas = document.getElementById(`chart-${kpi.col}`);
     if (canvas) createFullChart(canvas, kpi, data);
   }
 
-  if (catId === 'originacion') {
+  if (catId === 'altas') {
     initAltasPie(data);
   }
 }
@@ -920,7 +979,14 @@ function buildAltasPieSection(data) {
           <label for="pie-month-sel">Mes:</label>
           <select id="pie-month-sel">${opts}</select>
         </div>
-        <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
+        <div class="pie-row">
+          <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
+          <div class="pie-total-card">
+            <div class="pie-total-label">Total de altas</div>
+            <div class="pie-total-num" id="pie-total-num">—</div>
+            <div class="pie-total-month" id="pie-total-month"></div>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -929,19 +995,35 @@ function initAltasPie(data) {
   const sel = document.getElementById('pie-month-sel');
   if (!sel) return;
   sel.selectedIndex = sel.options.length - 1;
-  drawAltasPie(data);
-  sel.addEventListener('change', () => drawAltasPie(data));
+  drawAltasPie(data, false);
+  sel.addEventListener('change', () => drawAltasPie(data, true));
 }
 
-function drawAltasPie(data) {
+function drawAltasPie(data, animate) {
   const sel    = document.getElementById('pie-month-sel');
   const canvas = document.getElementById('chart-pie-altas');
   if (!sel || !canvas) return;
 
-  const row = data.find(d => d.label === sel.value);
-  const tc  = row?.vals[COL_ALTAS_TC]  ?? 0;
-  const spp = row?.vals[COL_ALTAS_SPP] ?? 0;
+  const row   = data.find(d => d.label === sel.value);
+  const tc    = row?.vals[COL_ALTAS_TC]  ?? 0;
+  const spp   = row?.vals[COL_ALTAS_SPP] ?? 0;
   const total = tc + spp;
+
+  // Update total card with optional animation
+  const numEl   = document.getElementById('pie-total-num');
+  const monthEl = document.getElementById('pie-total-month');
+  if (numEl) {
+    if (animate) {
+      numEl.classList.add('pie-num-out');
+      setTimeout(() => {
+        numEl.textContent = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
+        numEl.classList.remove('pie-num-out');
+      }, 180);
+    } else {
+      numEl.textContent = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
+    }
+  }
+  if (monthEl) monthEl.textContent = sel.value;
 
   if (_altasPie) {
     const idx = state.charts.indexOf(_altasPie);
