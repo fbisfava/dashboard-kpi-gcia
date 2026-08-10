@@ -698,6 +698,10 @@ function renderCategory(catId) {
   }
   html += '</div></div>';
 
+  if (catId === 'originacion') {
+    html += buildAltasPieSection(data);
+  }
+
   el('content').innerHTML = html;
 
   document.querySelectorAll('.kpi-card .sparkline-container canvas').forEach((canvas, i) => {
@@ -708,6 +712,10 @@ function renderCategory(catId) {
   for (const kpi of cat.kpis) {
     const canvas = document.getElementById(`chart-${kpi.col}`);
     if (canvas) createFullChart(canvas, kpi, data);
+  }
+
+  if (catId === 'originacion') {
+    initAltasPie(data);
   }
 }
 
@@ -891,6 +899,90 @@ function createFullChart(canvas, kpi, data) {
     }
   });
   state.charts.push(ch);
+}
+
+// ─── ALTAS PIE CHART ─────────────────────────────────────────────────────────
+const COL_ALTAS_TC  = 63;
+const COL_ALTAS_SPP = 64;
+let _altasPie = null;
+
+function buildAltasPieSection(data) {
+  const months = data.filter(d => d.vals[COL_ALTAS_TC] != null && d.vals[COL_ALTAS_SPP] != null);
+  if (!months.length) return '';
+  const opts = months.map(d => `<option value="${d.label}">${d.label}</option>`).join('');
+  return `
+    <div class="charts-section">
+      <h2 class="section-title">Composición de Altas</h2>
+      <div class="pie-section">
+        <div class="pie-filter">
+          <label for="pie-month-sel">Mes:</label>
+          <select id="pie-month-sel">${opts}</select>
+        </div>
+        <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
+      </div>
+    </div>`;
+}
+
+function initAltasPie(data) {
+  const sel = document.getElementById('pie-month-sel');
+  if (!sel) return;
+  sel.selectedIndex = sel.options.length - 1;
+  drawAltasPie(data);
+  sel.addEventListener('change', () => drawAltasPie(data));
+}
+
+function drawAltasPie(data) {
+  const sel    = document.getElementById('pie-month-sel');
+  const canvas = document.getElementById('chart-pie-altas');
+  if (!sel || !canvas) return;
+
+  const row = data.find(d => d.label === sel.value);
+  const tc  = row?.vals[COL_ALTAS_TC]  ?? 0;
+  const spp = row?.vals[COL_ALTAS_SPP] ?? 0;
+  const total = tc + spp;
+
+  if (_altasPie) {
+    const idx = state.charts.indexOf(_altasPie);
+    if (idx >= 0) state.charts.splice(idx, 1);
+    _altasPie.destroy();
+    _altasPie = null;
+  }
+
+  _altasPie = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['Altas TC', 'Altas SPP'],
+      datasets: [{
+        data: [tc, spp],
+        backgroundColor: ['#CC0000', '#06b6d4'],
+        borderWidth: 2,
+        borderColor: '#1e1e1e'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#aaaaaa', font: { size: 13 }, padding: 16 } },
+        tooltip: {
+          backgroundColor: '#2a2a2a',
+          titleColor: '#ffffff',
+          bodyColor: '#cccccc',
+          borderColor: '#444444',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed;
+              const pct = total > 0 ? (v / total * 100).toFixed(1) : '0.0';
+              return `${ctx.label}: ${v.toLocaleString('es-AR')} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+  state.charts.push(_altasPie);
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────

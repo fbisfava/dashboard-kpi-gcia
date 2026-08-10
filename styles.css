@@ -543,6 +543,38 @@ body {
   height: 280px;
 }
 
+/* ========== PIE CHART ========== */
+.pie-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pie-filter {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+
+.pie-filter select {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  padding: .3rem .6rem;
+  font-size: .85rem;
+  cursor: pointer;
+}
+
+.pie-wrapper {
+  position: relative;
+  width: 340px;
+  height: 340px;
+}
+
 /* ========== LOADING ========== */
 .loading-overlay {
   position: fixed;
