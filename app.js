@@ -693,20 +693,55 @@ function renderHome() {
         <div class="sparkline-container"><canvas></canvas></div>
       </div>`;
   }
+  // Extra card: FPD préstamos (col 48) — ocupa el slot libre del grid
+  const fpdPKpi  = { col: 48, fmt: 'int', up: false };
+  const fpdPLast  = getLastVal(data, 48);
+  const fpdPPrev  = getPrevVal(data, 48);
+  const fpdPYoy   = getYoYVal(data, 48);
+  const fpdPdM    = getDelta(fpdPLast, fpdPPrev, 'int');
+  const fpdPdY    = getDelta(fpdPLast, fpdPYoy, 'int');
+  const fpdPStats = computeSMA12(data, 48);
+  const fpdPSm    = semaphoreColor(fpdPLast, fpdPKpi, fpdPStats, fpdPdM);
+  const fpdPTip   = escapeAttr(semaphoreTitle(fpdPKpi, fpdPStats, fpdPdM));
+  html += `
+    <div class="summary-card extra-card" data-tab="cuentas" data-subtab="prestamos">
+      <div class="cat-label">Préstamos</div>
+      <div class="kpi-card-header">
+        <div class="kpi-name">FPD préstamos</div>
+        <div class="kpi-header-right"><div class="semaphore ${fpdPSm}" title="${fpdPTip}"></div></div>
+      </div>
+      <div class="kpi-value">${fmtVal(fpdPLast, 'int')}</div>
+      <div class="kpi-deltas">
+        ${deltaTag(fpdPdM, false, 'm/m', 'int')}
+        ${deltaTag(fpdPdY, false, 'a/a', 'int')}
+      </div>
+      <div class="sparkline-container"><canvas></canvas></div>
+    </div>`;
+
   html += '</div>';
   html += buildAltasPieSection(data);
   el('content').innerHTML = html;
 
-  document.querySelectorAll('.summary-card').forEach(card => {
+  document.querySelectorAll('.summary-card:not(.extra-card)').forEach(card => {
     card.addEventListener('click', () => switchTab(card.dataset.tab));
   });
+  document.querySelectorAll('.summary-card.extra-card').forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.dataset.subtab) state.subTabs[card.dataset.tab] = card.dataset.subtab;
+      switchTab(card.dataset.tab);
+    });
+  });
 
-  document.querySelectorAll('.summary-card .sparkline-container canvas').forEach((canvas, i) => {
-    const cat = CATEGORIES[i];
-    const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
-    const hero = allKpis.find(k => k.hero) || allKpis[0];
-    const spark = getLast12(data, hero.col);
-    createSparkline(canvas, spark);
+  const allSummaryCanvases = document.querySelectorAll('.summary-card .sparkline-container canvas');
+  const catSparkDefs = [
+    ...CATEGORIES.map(cat => {
+      const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
+      return allKpis.find(k => k.hero) || allKpis[0];
+    }),
+    fpdPKpi
+  ];
+  allSummaryCanvases.forEach((canvas, i) => {
+    if (catSparkDefs[i]) createSparkline(canvas, getLast12(data, catSparkDefs[i].col));
   });
 
   initAltasPie(data);
@@ -971,6 +1006,20 @@ function buildAltasPieSection(data) {
   const months = data.filter(d => d.vals[COL_ALTAS_TC] != null && d.vals[COL_ALTAS_SPP] != null);
   if (!months.length) return '';
   const opts = months.map(d => `<option value="${d.label}">${d.label}</option>`).join('');
+
+  // FPD Refinanciaciones stat (col 45)
+  const fpdR     = getLastVal(data, 45);
+  const fpdRPrev = getPrevVal(data, 45);
+  const fpdRdM   = getDelta(fpdR, fpdRPrev, 'int');
+  const fpdRKpi  = { col: 45, fmt: 'int', up: false };
+  const fpdRStats= computeSMA12(data, 45);
+  const fpdRSm   = semaphoreColor(fpdR, fpdRKpi, fpdRStats, fpdRdM);
+  const fpdRVal  = fmtVal(fpdR, 'int');
+  const fpdRAbsDiff = (fpdR !== null && fpdRPrev !== null) ? Math.round(fpdR - fpdRPrev) : null;
+  const fpdRdMTxt = fpdRAbsDiff !== null
+    ? `<span class="pie-stat-delta ${fpdRAbsDiff <= 0 ? 'positive' : 'negative'}">${fpdRAbsDiff <= 0 ? '▼' : '▲'} ${Math.abs(fpdRAbsDiff).toLocaleString('es-AR')} m/m</span>`
+    : '';
+
   return `
     <div class="charts-section">
       <h2 class="section-title">Composición de Altas</h2>
@@ -981,10 +1030,19 @@ function buildAltasPieSection(data) {
         </div>
         <div class="pie-row">
           <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
-          <div class="pie-total-card">
-            <div class="pie-total-label">Total de altas</div>
-            <div class="pie-total-num" id="pie-total-num">—</div>
-            <div class="pie-total-month" id="pie-total-month"></div>
+          <div class="pie-stats-col">
+            <div class="pie-total-card">
+              <div class="pie-total-label">Total de altas</div>
+              <div class="pie-total-num" id="pie-total-num">—</div>
+              <div class="pie-total-month" id="pie-total-month"></div>
+            </div>
+            <div class="pie-total-card pie-stat-card">
+              <div class="pie-total-label">FPD refinanciaciones</div>
+              <div class="pie-total-num pie-stat-num">
+                <span class="semaphore-dot ${fpdRSm}"></span>${fpdRVal}
+              </div>
+              ${fpdRdMTxt}
+            </div>
           </div>
         </div>
       </div>
