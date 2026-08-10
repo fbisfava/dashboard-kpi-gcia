@@ -409,12 +409,33 @@ body {
   text-decoration: underline;
   font-family: var(--font);
 }
-.ktip-sql {
+.ktip-sql-wrap {
+  position: relative;
   margin-top: 10px;
+}
+.ktip-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 4px;
+  color: #ccc;
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: pointer;
+  z-index: 1;
+  transition: background .15s, color .15s, border-color .15s;
+  line-height: 1.6;
+}
+.ktip-copy-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ktip-copy-btn.copied { background: var(--green); color: #fff; border-color: var(--green); }
+.ktip-sql {
+  margin: 0;
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 6px;
-  padding: 10px;
+  padding: 10px 36px 10px 10px;
   font-size: 0.68rem;
   font-family: 'Courier New', monospace;
   overflow-x: auto;

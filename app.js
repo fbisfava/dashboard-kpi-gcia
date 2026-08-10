@@ -840,14 +840,25 @@ function initTooltip() {
   });
 
   _tipEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('.ktip-sql-toggle');
-    if (!btn) return;
-    const pre = _tipEl.querySelector('.ktip-sql');
-    if (!pre) return;
-    const show = pre.style.display === 'none' || !pre.style.display;
-    pre.style.display = show ? 'block' : 'none';
-    btn.textContent = show ? 'Ocultar query' : 'Ver query';
-    if (_tipEl._anchor) _positionTip(_tipEl._anchor);
+    const toggle = e.target.closest('.ktip-sql-toggle');
+    if (toggle) {
+      const wrap = _tipEl.querySelector('.ktip-sql-wrap');
+      if (!wrap) return;
+      const show = wrap.style.display === 'none' || !wrap.style.display;
+      wrap.style.display = show ? 'block' : 'none';
+      toggle.textContent = show ? 'Ocultar query' : 'Ver query';
+      if (_tipEl._anchor) _positionTip(_tipEl._anchor);
+      return;
+    }
+    const copyBtn = e.target.closest('.ktip-copy-btn');
+    if (copyBtn) {
+      const sql = _tipEl.querySelector('.ktip-sql')?.textContent || '';
+      navigator.clipboard.writeText(sql).then(() => {
+        copyBtn.textContent = '✓';
+        copyBtn.classList.add('copied');
+        setTimeout(() => { copyBtn.textContent = '⧉'; copyBtn.classList.remove('copied'); }, 1500);
+      });
+    }
   });
 
   document.addEventListener('mouseover', (e) => {
@@ -889,7 +900,7 @@ function _showTip(anchor, info) {
     html += `</div>`;
   }
   if (info.sql) {
-    html += `<pre class="ktip-sql" style="display:none"></pre>`;
+    html += `<div class="ktip-sql-wrap" style="display:none"><button class="ktip-copy-btn" title="Copiar query">⧉</button><pre class="ktip-sql"></pre></div>`;
   }
   _tipEl.innerHTML = html;
   if (info.sql) _tipEl.querySelector('.ktip-sql').textContent = info.sql;
