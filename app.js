@@ -1007,43 +1007,48 @@ function buildAltasPieSection(data) {
   if (!months.length) return '';
   const opts = months.map(d => `<option value="${d.label}">${d.label}</option>`).join('');
 
-  // FPD Refinanciaciones stat (col 45)
-  const fpdR     = getLastVal(data, 45);
-  const fpdRPrev = getPrevVal(data, 45);
-  const fpdRdM   = getDelta(fpdR, fpdRPrev, 'int');
-  const fpdRKpi  = { col: 45, fmt: 'int', up: false };
-  const fpdRStats= computeSMA12(data, 45);
-  const fpdRSm   = semaphoreColor(fpdR, fpdRKpi, fpdRStats, fpdRdM);
-  const fpdRVal  = fmtVal(fpdR, 'int');
-  const fpdRAbsDiff = (fpdR !== null && fpdRPrev !== null) ? Math.round(fpdR - fpdRPrev) : null;
-  const fpdRdMTxt = fpdRAbsDiff !== null
-    ? `<span class="pie-stat-delta ${fpdRAbsDiff <= 0 ? 'positive' : 'negative'}">${fpdRAbsDiff <= 0 ? '▼' : '▲'} ${Math.abs(fpdRAbsDiff).toLocaleString('es-AR')} m/m</span>`
-    : '';
+  // FPD Refinanciaciones card (col 45)
+  const fpdRKpi   = { col: 45, fmt: 'int', up: false };
+  const fpdR      = getLastVal(data, 45);
+  const fpdRPrev  = getPrevVal(data, 45);
+  const fpdRYoy   = getYoYVal(data, 45);
+  const fpdRdM    = getDelta(fpdR, fpdRPrev, 'int');
+  const fpdRdY    = getDelta(fpdR, fpdRYoy, 'int');
+  const fpdRStats = computeSMA12(data, 45);
+  const fpdRSm    = semaphoreColor(fpdR, fpdRKpi, fpdRStats, fpdRdM);
+  const fpdRTip   = escapeAttr(semaphoreTitle(fpdRKpi, fpdRStats, fpdRdM));
 
   return `
     <div class="charts-section">
-      <h2 class="section-title">Composición de Altas</h2>
-      <div class="pie-section">
-        <div class="pie-filter">
-          <label for="pie-month-sel">Mes:</label>
-          <select id="pie-month-sel">${opts}</select>
-        </div>
-        <div class="pie-row">
-          <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
-          <div class="pie-stats-col">
-            <div class="pie-total-card">
-              <div class="pie-total-label">Total de altas</div>
-              <div class="pie-total-num" id="pie-total-num">—</div>
-              <div class="pie-total-month" id="pie-total-month"></div>
+      <div class="pie-and-side">
+        <div>
+          <h2 class="section-title">Composición de Altas</h2>
+          <div class="pie-section">
+            <div class="pie-filter">
+              <label for="pie-month-sel">Mes:</label>
+              <select id="pie-month-sel">${opts}</select>
             </div>
-            <div class="pie-total-card pie-stat-card">
-              <div class="pie-total-label">FPD refinanciaciones</div>
-              <div class="pie-total-num pie-stat-num">
-                <span class="semaphore-dot ${fpdRSm}"></span>${fpdRVal}
+            <div class="pie-row">
+              <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
+              <div class="pie-total-card">
+                <div class="pie-total-label">Total de altas</div>
+                <div class="pie-total-num" id="pie-total-num">—</div>
+                <div class="pie-total-month" id="pie-total-month"></div>
               </div>
-              ${fpdRdMTxt}
             </div>
           </div>
+        </div>
+        <div class="kpi-card pie-side-kpi-card">
+          <div class="kpi-card-header">
+            <div class="kpi-name">FPD Refinanciaciones</div>
+            <div class="kpi-header-right"><div class="semaphore ${fpdRSm}" title="${fpdRTip}"></div></div>
+          </div>
+          <div class="kpi-value">${fmtVal(fpdR, 'int')}</div>
+          <div class="kpi-deltas">
+            ${deltaTag(fpdRdM, false, 'm/m', 'int')}
+            ${deltaTag(fpdRdY, false, 'a/a', 'int')}
+          </div>
+          <div class="sparkline-container"><canvas id="sparkline-fpd-refin"></canvas></div>
         </div>
       </div>
     </div>`;
@@ -1055,6 +1060,9 @@ function initAltasPie(data) {
   sel.selectedIndex = sel.options.length - 1;
   drawAltasPie(data, false);
   sel.addEventListener('change', () => drawAltasPie(data, true));
+
+  const sparkCanvas = document.getElementById('sparkline-fpd-refin');
+  if (sparkCanvas) createSparkline(sparkCanvas, getLast12(data, 45));
 }
 
 function drawAltasPie(data, animate) {
