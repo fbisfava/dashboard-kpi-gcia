@@ -158,6 +158,7 @@ const _U = {
   evolTC:    'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/9b2dbda7132221e24c90?experience=power-bi',
   evolTotal: 'https://app.powerbi.com/groups/719b86fa-614d-4963-bcd5-6b54f696c415/reports/f13717cb-4865-4abb-a6af-5ccfc9cdba66/54b95042560cc73675c1?experience=power-bi',
   vintage:   'https://app.powerbi.com/groups/b8be9f80-a741-4b8e-8c61-62623fa0a135/reports/9f911f8f-9c87-4a42-be84-bb87caf392f9/eaa444092ecc0e271d0c?experience=power-bi',
+  prestAct:  'https://app.powerbi.com/groups/10b65904-3676-44aa-8109-fd57736e93c8/reports/130d37b0-c2ed-4d09-b8dc-986445088d8e/ReportSection4d8b9bf0d3200c0c05ab?experience=power-bi',
 };
 
 const SQL_IH = `WITH stock_mensual AS (
@@ -245,6 +246,242 @@ GROUP BY
     RIGHT(CAST(NPA.[Período Cobranza] AS VARCHAR(6)), 2)
 ORDER BY [Mes pase a AB] ASC;`;
 
+const SQL_REFIN = `SELECT
+    p.[Prést. Nro Cuenta],
+    p.[Prést. Fecha Procesado],
+    p.[Prést. Periodo Ingrreso],
+    p.[Prést. 1er Per. Vto.],
+    p.[Prést. Cód. Línea],
+    p.[Prést. Cód. Plan],
+    p.[Prést. Imp. Capital],
+    cci.[Score Veraz Nro (Ap)],
+    l.[Nro Cuenta]                                       AS Match_Liquidaciones,
+    l.[Fecha_Plazo_Pago],
+    l.[Saldo (Imp. Resumen-PG-NC+ND)],
+    l.[Cerrada],
+    CASE
+        WHEN l.[Nro Cuenta] IS NULL THEN 'Sin resumen'
+        WHEN l.[Fecha_Plazo_Pago] >= CAST(GETDATE() AS DATE) THEN 'No venció'
+        WHEN l.[Saldo (Imp. Resumen-PG-NC+ND)] > 0 AND l.[Cerrada] = 0 THEN 'Default'
+        ELSE 'OK'
+    END AS FPD_status,
+    CASE
+        WHEN l.[Nro Cuenta] IS NULL THEN NULL
+        WHEN l.[Fecha_Plazo_Pago] >= CAST(GETDATE() AS DATE) THEN NULL
+        WHEN l.[Saldo (Imp. Resumen-PG-NC+ND)] > 0 AND l.[Cerrada] = 0 THEN 1
+        ELSE 0
+    END AS FPD_flag
+FROM [dbo].[Préstamos] p
+LEFT JOIN [dbo].[Liquidaciones y recaudación diaria expandida por cuenta v2] l
+    ON p.[Prést. Nro Cuenta] = l.[Nro Cuenta]
+    AND l.[Periodo Cobranza] = p.[Prést. 1er Per. Vto.]
+LEFT JOIN [dbo].[Créditos y Cobranzas Indicadores] cci
+    ON p.[Prést. Nro Cuenta] = cci.[Nro Cuenta]
+    AND cci.[Período Cobranza] = p.[Prést. Periodo Ingrreso]
+WHERE p.[Prést. Cód. Línea] IN ('RF1', 'RF2', 'RF3', 'RF4', 'EP1', 'EP2', 'PPV', 'D1W', 'D2W')
+    AND p.[Prést. 1er Per. Vto.] >= 202401
+    AND p.[Prést. Fecha Procesado] > 0`;
+
+const SQL_PREST = `SELECT
+    p.[Prést. Nro Cuenta],
+    p.[Prést. Fecha Procesado],
+    p.[Prést. Periodo Ingrreso],
+    p.[Prést. 1er Per. Vto.],
+    p.[Prést. Cód. Línea],
+    p.[Prést. Cód. Plan],
+    p.[Prést. Imp. Capital],
+    l.[Nro Cuenta]                                       AS Match_Liquidaciones,
+    l.[Fecha_Plazo_Pago],
+    l.[Saldo (Imp. Resumen-PG-NC+ND)],
+    l.[Cerrada],
+    CASE
+        WHEN l.[Nro Cuenta] IS NULL THEN 'Sin resumen'
+        WHEN l.[Fecha_Plazo_Pago] >= CAST(GETDATE() AS DATE) THEN 'No venció'
+        WHEN l.[Saldo (Imp. Resumen-PG-NC+ND)] > 0 AND l.[Cerrada] = 0 THEN 'Default'
+        ELSE 'OK'
+    END AS FPD_status,
+    CASE
+        WHEN l.[Nro Cuenta] IS NULL THEN NULL
+        WHEN l.[Fecha_Plazo_Pago] >= CAST(GETDATE() AS DATE) THEN NULL
+        WHEN l.[Saldo (Imp. Resumen-PG-NC+ND)] > 0 AND l.[Cerrada] = 0 THEN 1
+        ELSE 0
+    END AS FPD_flag
+FROM [dbo].[Préstamos] p
+LEFT JOIN [dbo].[Liquidaciones y recaudación diaria expandida por cuenta v2] l
+    ON p.[Prést. Nro Cuenta] = l.[Nro Cuenta]
+    AND l.[Periodo Cobranza] = p.[Prést. 1er Per. Vto.]
+WHERE p.[Prést. Cód. Línea] NOT IN ('RF1', 'RF2', 'RF3', 'RF4', 'EP1', 'EP2', 'PPV', 'D1W', 'D2W')
+    AND p.[Prést. 1er Per. Vto.] >= 202401
+    AND p.[Prést. Fecha Procesado] > 0`;
+
+const SQL_CURA = `DECLARE @PeriodoDesde INT = 202401;
+DECLARE @PeriodoHasta INT = 202606;
+DECLARE @PeriodoHastaExt INT =
+    CASE WHEN @PeriodoHasta % 100 = 12 THEN (@PeriodoHasta / 100 + 1) * 100 + 1 ELSE @PeriodoHasta + 1 END;
+DECLARE @MesAbsolutoActual INT =
+    (YEAR(GETDATE()) * 12 + MONTH(GETDATE()) - 1);
+
+IF OBJECT_ID('tempdb..#Tramo') IS NOT NULL DROP TABLE #Tramo;
+SELECT
+    L.[Nro Cuenta]                                             AS NroCuenta,
+    L.[Periodo Cobranza]                                       AS Periodo,
+    L.[Imp Resumen Total $ (Ap)]                               AS ImpRiesgo,
+    CASE
+        WHEN (CASE L.[Tramo] WHEN 'T1' THEN 0 WHEN 'T2' THEN 30
+                              WHEN 'T3' THEN 60 WHEN 'T4' THEN 90 END
+              + L.[Dias_atraso_del_tramo]) <= 30 THEN 'T1'
+        WHEN (CASE L.[Tramo] WHEN 'T1' THEN 0 WHEN 'T2' THEN 30
+                              WHEN 'T3' THEN 60 WHEN 'T4' THEN 90 END
+              + L.[Dias_atraso_del_tramo]) <= 60 THEN 'T2'
+        WHEN (CASE L.[Tramo] WHEN 'T1' THEN 0 WHEN 'T2' THEN 30
+                              WHEN 'T3' THEN 60 WHEN 'T4' THEN 90 END
+              + L.[Dias_atraso_del_tramo]) <= 90 THEN 'T3'
+        ELSE 'T4'
+    END                                                        AS TramoReal
+INTO #Tramo
+FROM [dbo].[Liquidaciones y recaudación diaria expandida por cuenta v2] L
+WHERE L.[Periodo Cobranza] BETWEEN @PeriodoDesde AND @PeriodoHastaExt;
+CREATE UNIQUE CLUSTERED INDEX IX_Tramo ON #Tramo (NroCuenta, Periodo);
+
+IF OBJECT_ID('tempdb..#ConRefi') IS NOT NULL DROP TABLE #ConRefi;
+;WITH NumerosRefi AS (
+    SELECT TOP (36) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n FROM sys.all_objects
+),
+PrestamosRefiConPlazo AS (
+    SELECT
+        P.[Prést. Nro Cuenta]                                  AS NroCuenta,
+        P.[Prést. Fecha Procesado] / 100                       AS PeriodoOrigenYYYYMM,
+        TRY_CAST(SUBSTRING(P.[Prést. Cód. Plan],
+            PATINDEX('%[0-9]%', P.[Prést. Cód. Plan]),
+            LEN(P.[Prést. Cód. Plan])) AS INT)                 AS PlazoOriginalMeses
+    FROM [dbo].[Préstamos] P
+    WHERE P.[Prést. Fecha Procesado] > 0
+      AND P.[Prést. Cód. Línea] IN ('RF1','RF2','RF3','RF4','EP1','EP2','PPV','D1W','D2W')
+),
+ExpandidoRefi AS (
+    SELECT PP.NroCuenta,
+        (PP.PeriodoOrigenYYYYMM / 100 * 12 + PP.PeriodoOrigenYYYYMM % 100 - 1 + Nu.n) AS MesAbsoluto
+    FROM PrestamosRefiConPlazo PP JOIN NumerosRefi Nu ON Nu.n < PP.PlazoOriginalMeses + 1
+    WHERE PP.PlazoOriginalMeses IS NOT NULL
+      AND (PP.PeriodoOrigenYYYYMM / 100 * 12 + PP.PeriodoOrigenYYYYMM % 100 - 1 + Nu.n) <= @MesAbsolutoActual
+)
+SELECT DISTINCT NroCuenta,
+    (MesAbsoluto / 12) * 100 + (MesAbsoluto % 12) + 1 AS Periodo
+INTO #ConRefi FROM ExpandidoRefi
+WHERE (MesAbsoluto / 12) * 100 + (MesAbsoluto % 12) + 1 BETWEEN @PeriodoDesde AND @PeriodoHasta;
+CREATE CLUSTERED INDEX IX_ConRefi ON #ConRefi (NroCuenta, Periodo);
+
+IF OBJECT_ID('tempdb..#CCI') IS NOT NULL DROP TABLE #CCI;
+SELECT C.[Nro Cuenta] AS NroCuenta, C.[Período Cobranza] AS Periodo,
+    C.[Estado General (Ap)] AS Estado,
+    C.[Imp Resumen TC $ (Ap)] AS ImpTC,
+    C.[Imp Resumen PF $ (Ap)] + C.[Imp Resumen FN $ (Ap)] AS ImpPrestamo
+INTO #CCI FROM [dbo].[Créditos y Cobranzas Indicadores] C
+WHERE C.[Período Cobranza] BETWEEN @PeriodoDesde AND @PeriodoHastaExt;
+CREATE CLUSTERED INDEX IX_CCI ON #CCI (NroCuenta, Periodo);
+
+IF OBJECT_ID('tempdb..#Producto') IS NOT NULL DROP TABLE #Producto;
+SELECT T.NroCuenta, T.Periodo,
+    CASE
+        WHEN RF.NroCuenta IS NOT NULL THEN 'Refinanciación'
+        WHEN ISNULL(CCI.ImpTC,0) > 0 AND ISNULL(CCI.ImpPrestamo,0) > 0 THEN 'Mixta'
+        WHEN ISNULL(CCI.ImpTC,0) > 0 THEN 'Solo TC'
+        WHEN ISNULL(CCI.ImpPrestamo,0) > 0 THEN 'Solo Préstamo'
+        ELSE 'Sin clasificar'
+    END AS Producto
+INTO #Producto FROM #Tramo T
+LEFT JOIN #ConRefi RF  ON RF.NroCuenta = T.NroCuenta AND RF.Periodo = T.Periodo
+LEFT JOIN #CCI     CCI ON CCI.NroCuenta = T.NroCuenta AND CCI.Periodo = T.Periodo;
+CREATE UNIQUE CLUSTERED INDEX IX_Producto ON #Producto (NroCuenta, Periodo);
+
+IF OBJECT_ID('tempdb..#Transicion') IS NOT NULL DROP TABLE #Transicion;
+SELECT A.NroCuenta, A.Periodo AS PeriodoOrigen, A.TramoReal AS TramoOrigen,
+    A.ImpRiesgo AS ImpRiesgoOrigen, P.Producto,
+    COALESCE(B.TramoReal, CASE WHEN CCI.Estado = 'AB' THEN 'AB' ELSE 'T1' END) AS DestinoMesSiguiente
+INTO #Transicion FROM #Tramo A
+JOIN #Producto P ON P.NroCuenta = A.NroCuenta AND P.Periodo = A.Periodo
+LEFT JOIN #Tramo B ON B.NroCuenta = A.NroCuenta
+   AND B.Periodo = CASE WHEN A.Periodo % 100 = 12 THEN (A.Periodo / 100 + 1) * 100 + 1 ELSE A.Periodo + 1 END
+LEFT JOIN #CCI CCI ON CCI.NroCuenta = A.NroCuenta
+   AND CCI.Periodo = CASE WHEN A.Periodo % 100 = 12 THEN (A.Periodo / 100 + 1) * 100 + 1 ELSE A.Periodo + 1 END
+WHERE A.TramoReal IN ('T2','T3','T4') AND A.Periodo BETWEEN @PeriodoDesde AND @PeriodoHasta;
+
+SELECT PeriodoOrigen, Producto, TramoOrigen,
+    COUNT(*) AS Q_Total,
+    SUM(CASE WHEN DestinoMesSiguiente = 'T1' THEN 1 ELSE 0 END) AS Q_Curo,
+    CAST(SUM(CASE WHEN DestinoMesSiguiente = 'T1' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*),0) AS DECIMAL(6,4)) AS TasaCura_Cantidad,
+    SUM(ImpRiesgoOrigen) AS Monto_Total,
+    SUM(CASE WHEN DestinoMesSiguiente = 'T1' THEN ImpRiesgoOrigen ELSE 0 END) AS Monto_Curo,
+    CAST(SUM(CASE WHEN DestinoMesSiguiente = 'T1' THEN ImpRiesgoOrigen ELSE 0 END) / NULLIF(SUM(ImpRiesgoOrigen),0) AS DECIMAL(6,4)) AS TasaCura_Monto
+FROM #Transicion GROUP BY PeriodoOrigen, Producto, TramoOrigen
+ORDER BY PeriodoOrigen, Producto, CASE TramoOrigen WHEN 'T2' THEN 1 WHEN 'T3' THEN 2 WHEN 'T4' THEN 3 END;`;
+
+const SQL_ALTAS = `SELECT
+    YEAR([Cuenta Fecha Alta]) AS Año,
+    MONTH([Cuenta Fecha Alta]) AS Mes,
+    CASE
+        WHEN [Cuenta Cód. Categoría] IS NULL OR [Cuenta Cód. Categoría] = ''
+            THEN 'TC - Tarjeta de Crédito Fava'
+        ELSE [Cuenta Cód. Categoría]
+    END AS Categoría,
+    COUNT(*) AS Cantidad_Altas
+FROM [Cuentas Actual]
+WHERE [Cuenta Fecha Alta] >= '2024-01-01'
+  AND [Cuenta Fecha Alta] < '2025-12-31'
+GROUP BY
+    YEAR([Cuenta Fecha Alta]),
+    MONTH([Cuenta Fecha Alta]),
+    CASE
+        WHEN [Cuenta Cód. Categoría] IS NULL OR [Cuenta Cód. Categoría] = ''
+            THEN 'TC - Tarjeta de Crédito Fava'
+        ELSE [Cuenta Cód. Categoría]
+    END
+ORDER BY Año, Mes, Categoría;`;
+
+const SQL_ALTAS_USO = `WITH CuentasFiltradas AS (
+    SELECT
+        [Cuenta Nro],
+        [Cuenta Fecha Alta],
+        CASE
+            WHEN [Cuenta Cód. Categoría] IS NULL OR [Cuenta Cód. Categoría] = ''
+                THEN 'TC - Tarjeta de Crédito Fava'
+            ELSE [Cuenta Cód. Categoría]
+        END AS Categoría,
+        CONVERT(VARCHAR(6), [Cuenta Fecha Alta], 112) AS PeriodoAlta,
+        CONVERT(VARCHAR(6), DATEADD(MONTH, 1, [Cuenta Fecha Alta]), 112) AS PeriodoSiguiente
+    FROM [Cuentas Actual]
+    WHERE [Cuenta Fecha Alta] >= '2026-01-01'
+      AND [Cuenta Fecha Alta] < '2026-08-01'
+),
+CCIRelevante AS (
+    SELECT [Nro Cuenta], [Período Cobranza], [Imp Resumen Total $ (Ap)]
+    FROM [Créditos y Cobranzas Indicadores]
+    WHERE [Período Cobranza] >= '202601' AND [Período Cobranza] <= '202609'
+),
+CuentasConUso AS (
+    SELECT
+        cf.[Cuenta Nro], cf.[Cuenta Fecha Alta], cf.Categoría,
+        MAX(CASE
+            WHEN cci.[Período Cobranza] IN (cf.PeriodoAlta, cf.PeriodoSiguiente)
+                 AND cci.[Imp Resumen Total $ (Ap)] > 0
+            THEN 1 ELSE 0
+        END) AS UsoEnPrimeros2Meses
+    FROM CuentasFiltradas cf
+    LEFT JOIN CCIRelevante cci ON cci.[Nro Cuenta] = cf.[Cuenta Nro]
+        AND cci.[Período Cobranza] IN (cf.PeriodoAlta, cf.PeriodoSiguiente)
+    GROUP BY cf.[Cuenta Nro], cf.[Cuenta Fecha Alta], cf.Categoría
+)
+SELECT
+    YEAR([Cuenta Fecha Alta]) AS Año,
+    MONTH([Cuenta Fecha Alta]) AS Mes,
+    Categoría,
+    COUNT(*) AS Cantidad_Altas,
+    SUM(UsoEnPrimeros2Meses) AS Altas_Con_Uso,
+    CAST(SUM(UsoEnPrimeros2Meses) AS FLOAT) / COUNT(*) AS Pct_Uso
+FROM CuentasConUso
+GROUP BY YEAR([Cuenta Fecha Alta]), MONTH([Cuenta Fecha Alta]), Categoría
+ORDER BY Año, Mes, Categoría;`;
+
 const KPI_INFO = {
   // COBRANZA
   1:  { def: '% importe cobrado del mes de cuentas sin préstamo activo.',
@@ -284,8 +521,7 @@ const KPI_INFO = {
   18: { def: 'Cuentas inhabilitadas o DV dividido cuentas totales.', sql: SQL_IH },
   19: { def: "Cantidad de clientes que migran a estado 'Abogados' en el mes en curso.", sql: SQL_AB },
   20: { def: "Sumatoria de monto adeudado de las cuentas al momento de pasar a estado 'AB'.", sql: SQL_AB },
-  21: { def: 'Cantidad de refinanciaciones realizadas en el período.',
-        link: { url: _U.refin, label: 'Cobranza segmentada › General' } },
+  21: { def: 'Cantidad de refinanciaciones realizadas en el período.', sql: SQL_REFIN },
   24: { def: 'Score Veraz promedio de la cartera de clientes activos.',
         link: { url: _U.scores, label: 'Datos cartera para riesgo › Scores' } },
   // ROLL RATES
@@ -308,6 +544,38 @@ const KPI_INFO = {
         link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (90 días)' } },
   // ORIGINACIÓN (SIISA)
   43: { def: 'Cantidad de altas de clientes dividido cantidad de informes Veraz consumidos.' },
+  // CUENTAS Y CARTERA — nuevos (Refinanciaciones)
+  44: { def: 'Score Veraz promedio de las refinanciaciones del mes.', sql: SQL_REFIN },
+  45: { def: 'First payment default de refinanciaciones: cantidad de cuentas que no pagaron la primera cuota de su refinanciación.', sql: SQL_REFIN },
+  46: { def: 'FPD Refinanciaciones / Cantidad de refinanciaciones del mes.' },
+  // Préstamos
+  47: { def: 'Cantidad de préstamos otorgados en el mes.', sql: SQL_PREST },
+  48: { def: 'First payment default de préstamos: cantidad de cuentas que no pagaron la primera cuota de su préstamo.', sql: SQL_PREST },
+  49: { def: 'FPD Préstamos / Cantidad de préstamos del mes.' },
+  50: { def: 'Cantidad de cuentas con al menos un préstamo vigente.',
+        link: { url: _U.prestAct, label: 'Indicadores generales' } },
+  51: { def: 'Cuentas con préstamo activo / Cuentas habilitadas.' },
+  // Tasas de cura
+  52: { def: '% de monto de préstamos en Tramo 2 (31–60 días de atraso) que retornan al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  53: { def: '% de monto de Tarjeta de Crédito en Tramo 2 (31–60 días de atraso) que retorna al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  54: { def: '% de monto de refinanciaciones en Tramo 2 (31–60 días de atraso) que retorna al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  55: { def: '% de monto de préstamos en Tramo 3 (61–90 días de atraso) que retornan al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  56: { def: '% de monto de Tarjeta de Crédito en Tramo 3 (61–90 días de atraso) que retorna al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  57: { def: '% de monto de refinanciaciones en Tramo 3 (61–90 días de atraso) que retorna al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  58: { def: '% de monto de préstamos en Tramo 4 (91–120 días de atraso) que retornan al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  59: { def: '% de monto de Tarjeta de Crédito en Tramo 4 (91–120 días de atraso) que retorna al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  60: { def: '% de monto de refinanciaciones en Tramo 4 (91–120 días de atraso) que retorna al Tramo 1 en el mes siguiente.', sql: SQL_CURA },
+  // ALTAS
+  61: { def: 'Cantidad de clientes dados de alta en el mes.', sql: SQL_ALTAS },
+  62: { def: 'Altas del mes / Aprobados por SIISA en el mes.' },
+  63: { def: 'Cantidad de altas de Tarjeta de Crédito en el mes.', sql: SQL_ALTAS },
+  64: { def: 'Cantidad de altas de Préstamo Personal (SPP) en el mes.', sql: SQL_ALTAS },
+  65: { def: '% de tarjetas de crédito dadas de alta que registraron al menos un consumo durante el primer mes de vida.', sql: SQL_ALTAS_USO },
+  // VINTAGE >30
+  66: { def: '% de importe atrasado 30 días o más a los 6 meses de la cosecha de préstamo.',
+        link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (30 días)' } },
+  67: { def: '% de importe atrasado 30 días o más a los 12 meses de la cosecha de préstamo.',
+        link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (30 días)' } },
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1005,7 +1273,7 @@ let _altasPie = null;
 function buildAltasPieSection(data, showFpdRefin = false) {
   const months = data.filter(d => d.vals[COL_ALTAS_TC] != null && d.vals[COL_ALTAS_SPP] != null);
   if (!months.length) return '';
-  const opts = months.map(d => `<option value="${d.label}">${d.label}</option>`).join('');
+  const opts = months.map(d => `<div class="csel-option" data-value="${d.label}">${d.label}</div>`).join('');
 
   // FPD Refinanciaciones card (col 45)
   const fpdRKpi   = { col: 45, fmt: 'int', up: false };
@@ -1039,8 +1307,14 @@ function buildAltasPieSection(data, showFpdRefin = false) {
           <h2 class="section-title">Composición de Altas</h2>
           <div class="pie-section">
             <div class="pie-filter">
-              <label for="pie-month-sel">Mes:</label>
-              <select id="pie-month-sel">${opts}</select>
+              <span class="pie-filter-label">Mes:</span>
+              <div class="csel" id="pie-month-sel">
+                <div class="csel-trigger">
+                  <span class="csel-label">—</span>
+                  <span class="csel-arrow">▾</span>
+                </div>
+                <div class="csel-panel">${opts}</div>
+              </div>
             </div>
             <div class="pie-row">
               <div class="pie-wrapper"><canvas id="chart-pie-altas"></canvas></div>
@@ -1058,22 +1332,42 @@ function buildAltasPieSection(data, showFpdRefin = false) {
 }
 
 function initAltasPie(data) {
-  const sel = document.getElementById('pie-month-sel');
-  if (!sel) return;
-  sel.selectedIndex = sel.options.length - 1;
+  const wrapper = document.getElementById('pie-month-sel');
+  if (!wrapper) return;
+
+  const trigger = wrapper.querySelector('.csel-trigger');
+  const panel   = wrapper.querySelector('.csel-panel');
+  const label   = wrapper.querySelector('.csel-label');
+  const options = wrapper.querySelectorAll('.csel-option');
+
+  function selectOpt(opt) {
+    options.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    wrapper.dataset.value = opt.dataset.value;
+    label.textContent = opt.dataset.value;
+    wrapper.classList.remove('open');
+  }
+
+  if (options.length) selectOpt(options[options.length - 1]);
   drawAltasPie(data, false);
-  sel.addEventListener('change', () => drawAltasPie(data, true));
+
+  trigger.addEventListener('click', e => { e.stopPropagation(); wrapper.classList.toggle('open'); });
+  document.addEventListener('click', () => wrapper.classList.remove('open'));
+  options.forEach(opt => opt.addEventListener('click', e => {
+    e.stopPropagation(); selectOpt(opt); drawAltasPie(data, true);
+  }));
 
   const sparkCanvas = document.getElementById('sparkline-fpd-refin');
   if (sparkCanvas) createSparkline(sparkCanvas, getLast12(data, 45));
 }
 
 function drawAltasPie(data, animate) {
-  const sel    = document.getElementById('pie-month-sel');
-  const canvas = document.getElementById('chart-pie-altas');
-  if (!sel || !canvas) return;
+  const wrapper = document.getElementById('pie-month-sel');
+  const canvas  = document.getElementById('chart-pie-altas');
+  if (!wrapper || !canvas) return;
 
-  const row   = data.find(d => d.label === sel.value);
+  const selectedValue = wrapper.dataset.value;
+  const row   = data.find(d => d.label === selectedValue);
   const tc    = row?.vals[COL_ALTAS_TC]  ?? 0;
   const spp   = row?.vals[COL_ALTAS_SPP] ?? 0;
   const total = tc + spp;
@@ -1092,7 +1386,7 @@ function drawAltasPie(data, animate) {
       numEl.textContent = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
     }
   }
-  if (monthEl) monthEl.textContent = sel.value;
+  if (monthEl) monthEl.textContent = selectedValue;
 
   if (_altasPie) {
     const idx = state.charts.indexOf(_altasPie);

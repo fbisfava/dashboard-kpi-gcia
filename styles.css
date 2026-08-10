@@ -600,6 +600,63 @@ body {
   padding: .3rem .6rem;
   font-size: .85rem;
   cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* Custom dropdown (replaces native select for full styling control) */
+.csel {
+  position: relative;
+  display: inline-block;
+  font-size: .85rem;
+}
+.csel-trigger {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  padding: .3rem .7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-width: 90px;
+  user-select: none;
+  transition: border-color .15s;
+}
+.csel-trigger:hover { border-color: var(--accent); }
+.csel-arrow {
+  font-size: .7rem;
+  color: var(--text-secondary);
+  transition: transform .15s;
+  margin-left: auto;
+}
+.csel.open .csel-arrow { transform: rotate(180deg); }
+.csel-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.csel.open .csel-panel { display: block; }
+.csel-option {
+  padding: .35rem .7rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s, color .1s;
+}
+.csel-option:hover { background: var(--accent); color: #fff; }
+.csel-option.selected {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .pie-row {
