@@ -1490,16 +1490,8 @@ function el(id) { return document.getElementById(id); }
 function showError(err) {
   el('content').innerHTML = `
     <div class="error-box">
-      <h3>Error al cargar datos</h3>
-      <p>${err.message || err}</p>
-      <p>Para que el dashboard funcione, la hoja de Google Sheets debe estar:</p>
-      <ol>
-        <li>Compartida como <strong>"Cualquiera con el link puede ver"</strong></li>
-        <li>Publicada en la web: <strong>Archivo &gt; Compartir &gt; Publicar en la web</strong> (seleccioná la hoja "DATOS RIESGO Y RECUPERO" y formato "Página web")</li>
-      </ol>
-      <p>URL de la hoja configurada:</p>
-      <p><code>${DATA_URLS[0]}</code></p>
-      <p>Si la hoja cambió de URL, editá las constantes <code>SHEET_ID</code> y <code>GID</code> al inicio del archivo <code>app.js</code>.</p>
+      <h3>No se pudo acceder a los datos</h3>
+      <p>Verificá tu conexión e intentá recargar la página.</p>
     </div>`;
 }
 
