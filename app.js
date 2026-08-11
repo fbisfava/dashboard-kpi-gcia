@@ -987,7 +987,7 @@ function renderHome() {
       <div class="cat-label">Préstamos</div>
       <div class="kpi-card-header">
         <div class="kpi-name">FPD préstamos</div>
-        <div class="kpi-header-right"><div class="semaphore ${fpdPSm}" title="${fpdPTip}"></div></div>
+        <div class="kpi-header-right"><button class="kpi-info-btn" data-kpi-col="48" aria-label="Información">i</button><div class="semaphore ${fpdPSm}" title="${fpdPTip}"></div></div>
       </div>
       <div class="kpi-value">${fmtVal(fpdPLast, 'int')}</div>
       <div class="kpi-deltas">
@@ -1301,7 +1301,7 @@ function buildAltasPieSection(data, showFpdRefin = false) {
         <div class="kpi-card pie-side-kpi-card">
           <div class="kpi-card-header">
             <div class="kpi-name">FPD Refinanciaciones</div>
-            <div class="kpi-header-right"><div class="semaphore ${fpdRSm}" title="${fpdRTip}"></div></div>
+            <div class="kpi-header-right"><button class="kpi-info-btn" data-kpi-col="45" aria-label="Información">i</button><div class="semaphore ${fpdRSm}" title="${fpdRTip}"></div></div>
           </div>
           <div class="kpi-value">${fmtVal(fpdR, 'int')}</div>
           <div class="kpi-deltas">
