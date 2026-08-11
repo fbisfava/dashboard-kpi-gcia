@@ -487,7 +487,7 @@ body {
 }
 
 .sparkline-container {
-  height: 34px;
+  height: 48px;
   margin-top: auto;
 }
 
@@ -532,7 +532,7 @@ body {
 }
 
 .summary-card .kpi-value { font-size: 1.75rem; }
-.summary-card .sparkline-container { height: 38px; }
+.summary-card .sparkline-container { height: 48px; }
 
 /* ========== CHARTS SECTION ========== */
 .charts-section { margin-top: 1.5rem; }
@@ -846,6 +846,30 @@ body {
 }
 
 .error-box li { margin-bottom: .25rem; }
+
+/* ========== SEMAPHORE TOOLTIP ========== */
+#sm-tooltip {
+  position: fixed;
+  z-index: 9998;
+  background: #1c1c1c;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .72rem;
+  line-height: 1.75;
+  box-shadow: 0 4px 20px rgba(0,0,0,.6);
+  display: none;
+  pointer-events: none;
+  max-width: 280px;
+}
+.smt-header {
+  font-weight: 600;
+  color: #e0e0e0;
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #333;
+}
+.smt-line { color: #999; }
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {

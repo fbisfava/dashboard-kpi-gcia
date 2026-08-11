@@ -828,6 +828,8 @@ function escapeHtml(s) {
 // ─── KPI TOOLTIP ──────────────────────────────────────────────────────────────
 let _tipEl = null;
 let _tipTimer = null;
+let _smTipEl = null;
+let _smTipTimer = null;
 
 function initTooltip() {
   _tipEl = document.createElement('div');
@@ -880,6 +882,30 @@ function initTooltip() {
   document.addEventListener('click', (e) => {
     if (e.target.closest('.kpi-info-btn')) e.stopPropagation();
   }, true);
+
+  // ── Tooltip de semáforo ──
+  _smTipEl = document.createElement('div');
+  _smTipEl.id = 'sm-tooltip';
+  document.body.appendChild(_smTipEl);
+
+  document.addEventListener('mouseover', (e) => {
+    const sm = e.target.closest('.semaphore[data-sm-tip]');
+    if (!sm) return;
+    clearTimeout(_smTipTimer);
+    const lines = sm.dataset.smTip.split('\n');
+    _smTipEl.innerHTML = lines.map((l, i) =>
+      `<div class="${i === 0 ? 'smt-header' : 'smt-line'}">${escapeHtml(l)}</div>`
+    ).join('');
+    _smTipEl.style.display = 'block';
+    _positionSmTip(sm);
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const sm = e.target.closest('.semaphore[data-sm-tip]');
+    if (sm && !sm.contains(e.relatedTarget)) {
+      _smTipTimer = setTimeout(() => { if (_smTipEl) _smTipEl.style.display = 'none'; }, 120);
+    }
+  });
 }
 
 function _scheduleHide() {
@@ -907,6 +933,20 @@ function _showTip(anchor, info) {
   _tipEl._anchor = anchor;
   _tipEl.style.display = 'block';
   _positionTip(anchor);
+}
+
+function _positionSmTip(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const tipW = _smTipEl.offsetWidth;
+  const tipH = _smTipEl.offsetHeight;
+  const vw = window.innerWidth;
+  let top = rect.top - tipH - 8;
+  let left = rect.left + rect.width / 2 - tipW / 2;
+  if (left + tipW > vw - 8) left = vw - tipW - 8;
+  if (left < 8) left = 8;
+  if (top < 8) top = rect.bottom + 8;
+  _smTipEl.style.top = Math.max(8, top) + 'px';
+  _smTipEl.style.left = left + 'px';
 }
 
 function _positionTip(anchor) {
@@ -962,7 +1002,7 @@ function renderHome() {
         <div class="cat-label">${cat.name}</div>
         <div class="kpi-card-header">
           <div class="kpi-name">${hero.name}</div>
-          <div class="kpi-header-right">${heroInfoBtn}<div class="semaphore ${sm}" title="${tip}"></div></div>
+          <div class="kpi-header-right">${heroInfoBtn}<div class="semaphore ${sm}" data-sm-tip="${tip}"></div></div>
         </div>
         <div class="kpi-value">${fmtVal(last, hero.fmt)}</div>
         <div class="kpi-deltas">
@@ -987,7 +1027,7 @@ function renderHome() {
       <div class="cat-label">Préstamos</div>
       <div class="kpi-card-header">
         <div class="kpi-name">FPD préstamos</div>
-        <div class="kpi-header-right"><button class="kpi-info-btn" data-kpi-col="48" aria-label="Información">i</button><div class="semaphore ${fpdPSm}" title="${fpdPTip}"></div></div>
+        <div class="kpi-header-right"><button class="kpi-info-btn" data-kpi-col="48" aria-label="Información">i</button><div class="semaphore ${fpdPSm}" data-sm-tip="${fpdPTip}"></div></div>
       </div>
       <div class="kpi-value">${fmtVal(fpdPLast, 'int')}</div>
       <div class="kpi-deltas">
@@ -1111,7 +1151,7 @@ function renderKPICard(kpi, data) {
     <div class="kpi-card">
       <div class="kpi-card-header">
         <div class="kpi-name">${kpi.name}</div>
-        <div class="kpi-header-right">${infoBtn}<div class="semaphore ${sm}" title="${tip}"></div></div>
+        <div class="kpi-header-right">${infoBtn}<div class="semaphore ${sm}" data-sm-tip="${tip}"></div></div>
       </div>
       <div class="kpi-value">${fmtVal(last, kpi.fmt)}</div>
       <div class="kpi-deltas">
@@ -1188,6 +1228,8 @@ function destroyCharts() {
 function createSparkline(canvas, values) {
   if (!values.length) return;
   const color = '#CC0000';
+  const n = values.length;
+  const pointRadii = values.map((_, i) => i === n - 1 ? 3 : 0);
   const ch = new Chart(canvas, {
     type: 'line',
     data: {
@@ -1197,8 +1239,19 @@ function createSparkline(canvas, values) {
         borderColor: color,
         borderWidth: 1.5,
         fill: true,
-        backgroundColor: color + '18',
-        pointRadius: 0,
+        backgroundColor: (ctx) => {
+          const { chartArea, ctx: c } = ctx.chart;
+          if (!chartArea) return color + '00';
+          const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          g.addColorStop(0, color + '55');
+          g.addColorStop(1, color + '00');
+          return g;
+        },
+        pointRadius: pointRadii,
+        pointHoverRadius: pointRadii,
+        pointBackgroundColor: color,
+        pointBorderColor: '#2a2a2a',
+        pointBorderWidth: 1.5,
         tension: 0.35
       }]
     },
@@ -1303,7 +1356,7 @@ function buildAltasPieSection(data, showFpdRefin = false) {
         <div class="kpi-card pie-side-kpi-card">
           <div class="kpi-card-header">
             <div class="kpi-name">FPD Refinanciaciones</div>
-            <div class="kpi-header-right"><button class="kpi-info-btn" data-kpi-col="45" aria-label="Información">i</button><div class="semaphore ${fpdRSm}" title="${fpdRTip}"></div></div>
+            <div class="kpi-header-right"><button class="kpi-info-btn" data-kpi-col="45" aria-label="Información">i</button><div class="semaphore ${fpdRSm}" data-sm-tip="${fpdRTip}"></div></div>
           </div>
           <div class="kpi-value">${fmtVal(fpdR, 'int')}</div>
           <div class="kpi-deltas">
