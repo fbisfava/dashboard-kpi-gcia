@@ -809,8 +809,8 @@ function semaphoreTitle(kpi, stats, mmDelta) {
   const { sma, sd, n } = stats;
   const lines = [
     `SMA${n} = ${f(sma)}`,
-    kpi.up ? `Alerta (−1 DS): ${f(sma - sd)}` : `Alerta (+1 DS): ${f(sma + sd)}`,
-    kpi.up ? `Crítico (−2 DS): ${f(sma - 2 * sd)}` : `Crítico (+2 DS): ${f(sma + 2 * sd)}`,
+    kpi.up ? `Alerta (−1 DS): ${f(Math.max(0, sma - sd))}` : `Alerta (+1 DS): ${f(sma + sd)}`,
+    kpi.up ? `Crítico (−2 DS): ${f(Math.max(0, sma - 2 * sd))}` : `Crítico (+2 DS): ${f(sma + 2 * sd)}`,
   ];
   if (floorLine) lines.push(floorLine);
   if (velocityLine) lines.push(velocityLine);
