@@ -1384,7 +1384,9 @@ function drawAltasPie(data, animate) {
   const prevRow = rowIdx > 0   ? data[rowIdx - 1]  : null;
   const yoyRow  = rowIdx >= 12 ? data[rowIdx - 12] : null;
 
-  const total    = (row?.vals[COL_ALTAS_TC]  ?? 0) + (row?.vals[COL_ALTAS_SPP]  ?? 0);
+  const tc       = row?.vals[COL_ALTAS_TC]  ?? 0;
+  const spp      = row?.vals[COL_ALTAS_SPP] ?? 0;
+  const total    = tc + spp;
   const prevTot  = prevRow ? (prevRow.vals[COL_ALTAS_TC]  ?? 0) + (prevRow.vals[COL_ALTAS_SPP]  ?? 0) : null;
   const yoyTot   = yoyRow  ? (yoyRow.vals[COL_ALTAS_TC]   ?? 0) + (yoyRow.vals[COL_ALTAS_SPP]   ?? 0) : null;
   const dM = total > 0 && prevTot != null ? getDelta(total, prevTot, 'int') : null;
