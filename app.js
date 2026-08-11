@@ -1182,6 +1182,7 @@ function getLast12(data, col) {
 function destroyCharts() {
   state.charts.forEach(c => c.destroy());
   state.charts = [];
+  _altasPie = null;
 }
 
 function createSparkline(canvas, values) {
@@ -1280,6 +1281,7 @@ function createFullChart(canvas, kpi, data) {
 const COL_ALTAS_TC  = 63;
 const COL_ALTAS_SPP = 64;
 let _altasPie = null;
+let _cselDocListenerBound = false;
 
 function buildAltasPieSection(data, showFpdRefin = false) {
   const months = data.filter(d => d.vals[COL_ALTAS_TC] != null && d.vals[COL_ALTAS_SPP] != null);
@@ -1364,7 +1366,13 @@ function initAltasPie(data) {
   drawAltasPie(data, false);
 
   trigger.addEventListener('click', e => { e.stopPropagation(); wrapper.classList.toggle('open'); });
-  document.addEventListener('click', () => wrapper.classList.remove('open'));
+  if (!_cselDocListenerBound) {
+    _cselDocListenerBound = true;
+    document.addEventListener('click', () => {
+      const w = document.getElementById('pie-month-sel');
+      if (w) w.classList.remove('open');
+    });
+  }
   options.forEach(opt => opt.addEventListener('click', e => {
     e.stopPropagation(); selectOpt(opt); drawAltasPie(data, true);
   }));
