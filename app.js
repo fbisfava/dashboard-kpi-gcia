@@ -1332,6 +1332,7 @@ function buildAltasPieSection(data, showFpdRefin = false) {
               <div class="pie-total-card">
                 <div class="pie-total-label">Total de altas</div>
                 <div class="pie-total-num" id="pie-total-num">—</div>
+                <div class="kpi-deltas" id="pie-total-deltas"></div>
                 <div class="pie-total-month" id="pie-total-month"></div>
               </div>
             </div>
@@ -1378,23 +1379,36 @@ function drawAltasPie(data, animate) {
   if (!wrapper || !canvas) return;
 
   const selectedValue = wrapper.dataset.value;
-  const row   = data.find(d => d.label === selectedValue);
-  const tc    = row?.vals[COL_ALTAS_TC]  ?? 0;
-  const spp   = row?.vals[COL_ALTAS_SPP] ?? 0;
-  const total = tc + spp;
+  const rowIdx  = data.findIndex(d => d.label === selectedValue);
+  const row     = rowIdx >= 0 ? data[rowIdx] : null;
+  const prevRow = rowIdx > 0   ? data[rowIdx - 1]  : null;
+  const yoyRow  = rowIdx >= 12 ? data[rowIdx - 12] : null;
+
+  const total    = (row?.vals[COL_ALTAS_TC]  ?? 0) + (row?.vals[COL_ALTAS_SPP]  ?? 0);
+  const prevTot  = prevRow ? (prevRow.vals[COL_ALTAS_TC]  ?? 0) + (prevRow.vals[COL_ALTAS_SPP]  ?? 0) : null;
+  const yoyTot   = yoyRow  ? (yoyRow.vals[COL_ALTAS_TC]   ?? 0) + (yoyRow.vals[COL_ALTAS_SPP]   ?? 0) : null;
+  const dM = total > 0 && prevTot != null ? getDelta(total, prevTot, 'int') : null;
+  const dY = total > 0 && yoyTot  != null ? getDelta(total, yoyTot,  'int') : null;
 
   // Update total card with optional animation
-  const numEl   = document.getElementById('pie-total-num');
-  const monthEl = document.getElementById('pie-total-month');
+  const numEl     = document.getElementById('pie-total-num');
+  const deltasEl  = document.getElementById('pie-total-deltas');
+  const monthEl   = document.getElementById('pie-total-month');
+
+  const numText    = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
+  const deltasHtml = deltaTag(dM, true, 'm/m', 'int') + deltaTag(dY, true, 'a/a', 'int');
+
   if (numEl) {
     if (animate) {
       numEl.classList.add('pie-num-out');
       setTimeout(() => {
-        numEl.textContent = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
+        numEl.textContent = numText;
         numEl.classList.remove('pie-num-out');
+        if (deltasEl) deltasEl.innerHTML = deltasHtml;
       }, 180);
     } else {
-      numEl.textContent = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
+      numEl.textContent = numText;
+      if (deltasEl) deltasEl.innerHTML = deltasHtml;
     }
   }
   if (monthEl) monthEl.textContent = selectedValue;
