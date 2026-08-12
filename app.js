@@ -315,15 +315,12 @@ WHERE p.[Prést. Cód. Línea] NOT IN ('RF1', 'RF2', 'RF3', 'RF4', 'EP1', 'EP2',
     AND p.[Prést. Fecha Procesado] > 0`;
 
 const SQL_CURA = `DECLARE @PeriodoDesde INT = 202401;
-DECLARE @PeriodoHasta INT = 202606;   -- último mes que se REPORTA en el resultado final
-DECLARE @PeriodoHastaExt INT =        -- un mes más, solo para poder mirar el "destino" del último mes reportado
+DECLARE @PeriodoHasta INT = 202606;
+DECLARE @PeriodoHastaExt INT =
     CASE WHEN @PeriodoHasta % 100 = 12 THEN (@PeriodoHasta / 100 + 1) * 100 + 1 ELSE @PeriodoHasta + 1 END;
 DECLARE @MesAbsolutoActual INT =
-    (YEAR(GETDATE()) * 12 + MONTH(GETDATE()) - 1);   -- para censurar meses de vigencia que todavía no pasaron
+    (YEAR(GETDATE()) * 12 + MONTH(GETDATE()) - 1);
 
--- ============================================================================
--- PASO 1: Tramo reclasificado, materializado con índice (NroCuenta, Periodo)
--- ============================================================================
 IF OBJECT_ID('tempdb..#Tramo') IS NOT NULL DROP TABLE #Tramo;
 
 SELECT
@@ -344,17 +341,10 @@ SELECT
     END                                                         AS TramoReal
 INTO #Tramo
 FROM [dbo].[Liquidaciones y recaudación diaria expandida por cuenta v2] L
-WHERE L.[Periodo Cobranza] BETWEEN @PeriodoDesde AND @PeriodoHastaExt;   -- +1 mes, para poder mirar el destino del último mes reportado
+WHERE L.[Periodo Cobranza] BETWEEN @PeriodoDesde AND @PeriodoHastaExt;
 
 CREATE UNIQUE CLUSTERED INDEX IX_Tramo ON #Tramo (NroCuenta, Periodo);
 
--- ============================================================================
--- PASO 2: (eliminado) — antes reconstruíamos "préstamo vigente" expandiendo
--- por plazo desde Prést. Cód. Plan. Ya no hace falta: CCI trae Imp Resumen PF
--- e Imp Resumen FN por cuenta-mes directamente (ver Paso 4/5). PF y FN son el
--- mismo concepto (préstamo) separado por el cambio de sociedad Favacard ->
--- Favanet, así que se suman.
--- ============================================================================
 IF OBJECT_ID('tempdb..#ConRefi') IS NOT NULL DROP TABLE #ConRefi;
 
 ;WITH NumerosRefi AS (
@@ -393,14 +383,6 @@ WHERE (MesAbsoluto / 12) * 100 + (MesAbsoluto % 12) + 1 BETWEEN @PeriodoDesde AN
 
 CREATE CLUSTERED INDEX IX_ConRefi ON #ConRefi (NroCuenta, Periodo);
 
--- ============================================================================
--- PASO 3: (eliminado) — antes reconstruíamos "TC vigente" desde Cuentas Movs.
--- Ya no hace falta: CCI trae Imp Resumen TC por cuenta-mes directamente.
--- ============================================================================
-
--- ============================================================================
--- PASO 4: CCI — estado (para AB) y montos por producto (TC / PF / FN)
--- ============================================================================
 IF OBJECT_ID('tempdb..#CCI') IS NOT NULL DROP TABLE #CCI;
 
 SELECT
@@ -408,19 +390,13 @@ SELECT
     C.[Período Cobranza]                                        AS Periodo,
     C.[Estado General (Ap)]                                     AS Estado,
     C.[Imp Resumen TC $ (Ap)]                                   AS ImpTC,
-    C.[Imp Resumen PF $ (Ap)] + C.[Imp Resumen FN $ (Ap)]       AS ImpPrestamo   -- PF y FN son lo mismo (préstamo), separados por el cambio de sociedad Favacard -> Favanet
+    C.[Imp Resumen PF $ (Ap)] + C.[Imp Resumen FN $ (Ap)]       AS ImpPrestamo
 INTO #CCI
 FROM [dbo].[Créditos y Cobranzas Indicadores] C
 WHERE C.[Período Cobranza] BETWEEN @PeriodoDesde AND @PeriodoHastaExt;
 
 CREATE CLUSTERED INDEX IX_CCI ON #CCI (NroCuenta, Periodo);
 
--- ============================================================================
--- PASO 5: Clasificación de producto por cuenta-período — Refinanciación sigue
--- viniendo de #ConRefi (códigos de línea, no del flag de CCI que no es
--- confiable); Solo TC / Solo Préstamo / Mixta salen directo de los montos
--- de CCI del Paso 4.
--- ============================================================================
 IF OBJECT_ID('tempdb..#Producto') IS NOT NULL DROP TABLE #Producto;
 
 SELECT
@@ -440,11 +416,6 @@ LEFT JOIN #CCI      CCI ON CCI.NroCuenta = T.NroCuenta AND CCI.Periodo = T.Perio
 
 CREATE UNIQUE CLUSTERED INDEX IX_Producto ON #Producto (NroCuenta, Periodo);
 
--- ============================================================================
--- PASO 6: Matriz de transición (período siguiente calculado con aritmética
--- entera, comparado contra columnas Periodo ya indexadas — sin funciones
--- envolviendo la columna del lado derecho del join)
--- ============================================================================
 IF OBJECT_ID('tempdb..#Transicion') IS NOT NULL DROP TABLE #Transicion;
 
 SELECT
@@ -452,11 +423,11 @@ SELECT
     A.Periodo                                                   AS PeriodoOrigen,
     A.TramoReal                                                 AS TramoOrigen,
     A.ImpRiesgo                                                 AS ImpRiesgoOrigen,
-    ISNULL(CCI_Origen.ImpTC,0)                                  AS ImpTC_Origen,        -- monto específico de TC en el mes de origen (peso para categorías de TC)
-    ISNULL(CCI_Origen.ImpPrestamo,0)                            AS ImpPrestamo_Origen,  -- monto específico de Préstamo en el mes de origen (peso para categorías de Préstamo)
+    ISNULL(CCI_Origen.ImpTC,0)                                  AS ImpTC_Origen,
+    ISNULL(CCI_Origen.ImpPrestamo,0)                            AS ImpPrestamo_Origen,
     P.Producto,
     COALESCE(B.TramoReal,
-             CASE WHEN CCI.Estado = 'AB' THEN 'AB' ELSE 'T1' END   -- sigue activa (no AB) y sin resumen -> pagó, cuenta como cura
+             CASE WHEN CCI.Estado = 'AB' THEN 'AB' ELSE 'T1' END
     )                                                            AS DestinoMesSiguiente
 INTO #Transicion
 FROM #Tramo A
@@ -475,17 +446,8 @@ LEFT JOIN #CCI CCI
                            THEN (A.Periodo / 100 + 1) * 100 + 1
                            ELSE A.Periodo + 1 END
 WHERE A.TramoReal IN ('T2','T3','T4')
-  AND A.Periodo BETWEEN @PeriodoDesde AND @PeriodoHasta;   -- el mes extra (@PeriodoHastaExt) solo se usa como destino, nunca como origen reportado
+  AND A.Periodo BETWEEN @PeriodoDesde AND @PeriodoHasta;
 
--- ============================================================================
--- PASO 7: Tasa de cura final — UNA fila por período/tramo, con columnas
--- separadas por producto (formato ancho, no una fila por producto):
---   - TC: Q/Monto/Tasa, ponderado por Imp Resumen TC $ de CCI
---   - Prestamo: Q/Monto/Tasa, ponderado por Imp Resumen PF $ + FN $ de CCI
---   - Refinanciacion: Q/Monto/Tasa, ponderado por el total de la cuenta
--- TC y Préstamo excluyen las cuentas Refinanciación (no se dividen entre
--- ellas, se reportan aparte, en sus propias columnas).
--- ============================================================================
 SELECT
     PeriodoOrigen,
     TramoOrigen,
