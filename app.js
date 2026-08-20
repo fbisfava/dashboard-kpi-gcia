@@ -65,6 +65,8 @@ const CATEGORIES = [
           { name: 'Score Veraz promedio refinanciaciones', col: 44, fmt: 'num', up: true },
           { name: 'FPD Refinanciaciones',                 col: 45, fmt: 'int', up: false },
           { name: '% FPD refinanciaciones',               col: 46, fmt: 'pct', up: false },
+          { name: 'Composición refi — TC',                col: 68, fmt: 'pct', up: null },
+          { name: 'Composición refi — Préstamos',         col: 69, fmt: 'pct', up: null },
         ]
       },
       {
@@ -137,6 +139,20 @@ const CATEGORIES = [
       { name: 'Tasa Rechazo Préstamo',         col: 41, fmt: 'pct', up: false, th: [0.40, 0.60] },
       { name: 'Rechazos Política Zonas Prést.', col: 42, fmt: 'int', up: false, th: [20, 50] },
       { name: 'Tasa de conversión Veraz',      col: 43, fmt: 'pct', up: true,  th: null },
+    ]
+  },
+  {
+    id: 'recupero', name: 'Recupero', icon: 'Rc',
+    kpis: [
+      { name: 'Clientes en mora',                 col: 70, fmt: 'int', up: false, hero: true },
+      { name: 'Clientes en mora gestionados',     col: 71, fmt: 'int', up: true },
+      { name: 'Clientes en mora c/ contacto',     col: 72, fmt: 'int', up: true },
+      { name: 'Cuentas gestionadas en el mes',    col: 73, fmt: 'int', up: true },
+      { name: 'Tasa de cobertura de gestión',     col: 74, fmt: 'pct', up: true },
+      { name: 'Tasa de cumplimiento de promesas', col: 75, fmt: 'pct', up: true },
+      { name: 'Tasa de contacto efectivo',        col: 76, fmt: 'pct', up: true },
+      { name: 'Conversión de gestión a pago',     col: 77, fmt: 'pct', up: true },
+      { name: 'Intensidad de gestión',            col: 78, fmt: 'num', up: true },
     ]
   }
 ];
@@ -549,6 +565,135 @@ FROM CuentasConUso
 GROUP BY YEAR([Cuenta Fecha Alta]), MONTH([Cuenta Fecha Alta]), Categoría
 ORDER BY Año, Mes, Categoría;`;
 
+const SQL_CUENTAS_MORA = `SELECT
+    [Período Cobranza],
+    COUNT(DISTINCT [Nro Cuenta]) AS Cuentas_Con_Mora
+FROM [dbo].[Créditos y Cobranzas Indicadores]
+WHERE [Imp Resumen Impago Total $ (Cie)] > 0
+  AND [Período Cobranza] BETWEEN '202506' AND '202607'
+  AND [Estado General (Ap)] <> 'AB'
+GROUP BY [Período Cobranza]
+ORDER BY [Período Cobranza] ASC;`;
+
+const SQL_GESTION = `DECLARE @FechaDesde DATE = '2026-07-01';
+DECLARE @FechaHasta DATE = '2026-07-31';
+DECLARE @PeriodoCobranza INT = 202607;
+
+SELECT
+    COUNT(DISTINCT L.[Nro Cuenta]) AS Clientes_En_Mora_Con_Gestion
+FROM [dbo].[Créditos y Cobranzas Indicadores] L
+WHERE L.[Período Cobranza] = @PeriodoCobranza
+  AND L.[Imp Resumen Impago Total $ (Cie)] > 0
+  AND [Estado General (Ap)] <> 'AB'
+  AND EXISTS (
+        SELECT 1
+        FROM dbo.[Gestiones Engage] G
+        WHERE G.[Gestión Nro Cuenta] = L.[Nro Cuenta]
+          AND G.[Gestión Fecha] BETWEEN @FechaDesde AND @FechaHasta
+          AND G.[Gestión Días de Atraso] > 0
+  );`;
+
+const SQL_PROMESAS = `DECLARE @FechaDesde DATE = '2026-07-01';
+DECLARE @FechaHasta DATE = '2026-07-31';
+DECLARE @PeriodoCobranza INT = 202607;
+
+;WITH Promesas AS (
+    SELECT
+        G.[Gestión Nro]          AS Gestion_Nro,
+        G.[Gestión Nro Cuenta]   AS Nro_Cuenta,
+        G.[Gestión Fecha]        AS Fecha_Gestion,
+        G.[Gestión Fecha Espera] AS Fecha_Espera,
+        G.[Gestión Efecto]       AS Efecto_gestion
+    FROM dbo.[Gestiones Engage] G
+    WHERE G.[Gestión Fecha] BETWEEN @FechaDesde AND @FechaHasta
+      AND G.[Gestión Efecto] IN (
+          'FECHA DE ESPERA','ACUERDO RF','ACUERDO SIN PLAN',
+          'CONVENIO APLICADO','RF EXP1','RF EXP2','RF3','RF4'
+      )
+),
+PromesasConPago AS (
+    SELECT P.Gestion_Nro,
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM dbo.[Liquidaciones y recaudación diaria expandida por cuenta v2] L
+            WHERE L.[Nro Cuenta] = P.Nro_Cuenta
+              AND L.[Fecha_Ingreso_Últ_pg_nc_nd] BETWEEN P.Fecha_Gestion AND ISNULL(P.Fecha_Espera, @FechaHasta)
+              AND L.[Imp. Pagos] > 0
+        ) THEN 1 ELSE 0 END AS Cumplida
+    FROM Promesas P
+)
+SELECT
+    COUNT(*) AS Promesas_Generadas,
+    SUM(Cumplida) AS Promesas_Cumplidas,
+    CAST(SUM(Cumplida) AS DECIMAL(10,4)) / NULLIF(COUNT(*), 0) AS Tasa_Cumplimiento_Promesas
+FROM PromesasConPago;`;
+
+const SQL_CONTACTO = `DECLARE @FechaDesde DATE = '2026-07-01';
+DECLARE @FechaHasta DATE = '2026-07-31';
+
+SELECT
+    COUNT(*) AS Gestiones_Realizadas,
+    SUM(CASE WHEN G.[Gestión Contacto] IN
+        ('INTEGRANTE DE CUENTA','CONYUGE','FAMILIAR','CONTACTADO')
+        THEN 1 ELSE 0 END) AS Contactos_Efectivos,
+    CAST(SUM(CASE WHEN G.[Gestión Contacto] IN
+        ('INTEGRANTE DE CUENTA','CONYUGE','FAMILIAR','CONTACTADO')
+        THEN 1 ELSE 0 END) AS DECIMAL(10,4))
+        / NULLIF(COUNT(*), 0) AS Tasa_Contacto_Efectivo
+FROM dbo.[Gestiones Engage] G
+WHERE G.[Gestión Fecha] BETWEEN @FechaDesde AND @FechaHasta;`;
+
+const SQL_CONVERSION = `DECLARE @FechaDesde DATE = '2026-07-01';
+DECLARE @FechaHasta DATE = '2026-07-31';
+DECLARE @PeriodoCobranza INT = 202607;
+
+;WITH Contactadas AS (
+    SELECT DISTINCT G.[Gestión Nro Cuenta] AS Nro_Cuenta
+    FROM dbo.[Gestiones Engage] G
+    WHERE G.[Gestión Fecha] BETWEEN @FechaDesde AND @FechaHasta
+      AND G.[Gestión Contacto] IN
+          ('INTEGRANTE DE CUENTA','CONYUGE','FAMILIAR','CONTACTADO')
+),
+ContactadasConPago AS (
+    SELECT C.Nro_Cuenta,
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM dbo.[Liquidaciones y recaudación diaria expandida por cuenta v2] L
+            WHERE L.[Nro Cuenta] = C.Nro_Cuenta
+              AND L.[Periodo Cobranza] = @PeriodoCobranza
+              AND L.[Imp. Pagos] > 0
+        ) THEN 1 ELSE 0 END AS Con_Pago
+    FROM Contactadas C
+)
+SELECT
+    COUNT(*) AS Cuentas_Contactadas,
+    SUM(Con_Pago) AS Cuentas_Con_Pago,
+    CAST(SUM(Con_Pago) AS DECIMAL(10,4)) / NULLIF(COUNT(*), 0) AS Conversion_Gestion_A_Pago
+FROM ContactadasConPago;`;
+
+const SQL_INTENSIDAD = `DECLARE @FechaDesde DATE = '2026-07-01';
+DECLARE @FechaHasta DATE = '2026-07-31';
+
+;WITH CuentasEnMora AS (
+    SELECT DISTINCT G.[Gestión Nro Cuenta] AS Nro_Cuenta
+    FROM dbo.[Gestiones Engage] G
+    WHERE G.[Gestión Fecha] BETWEEN @FechaDesde AND @FechaHasta
+      AND G.[Gestión Días de Atraso] > 0
+),
+GestionesPorCuenta AS (
+    SELECT G.[Gestión Nro Cuenta] AS Nro_Cuenta, COUNT(*) AS Cant_Gestiones
+    FROM dbo.[Gestiones Engage] G
+    WHERE G.[Gestión Fecha] BETWEEN @FechaDesde AND @FechaHasta
+    GROUP BY G.[Gestión Nro Cuenta]
+)
+SELECT
+    COUNT(DISTINCT M.Nro_Cuenta)                                    AS Cuentas_En_Mora,
+    SUM(ISNULL(GPC.Cant_Gestiones, 0))                              AS Total_Gestiones,
+    CAST(SUM(ISNULL(GPC.Cant_Gestiones, 0)) AS DECIMAL(10,4))
+        / NULLIF(COUNT(DISTINCT M.Nro_Cuenta), 0)                   AS Intensidad_Gestion_Promedio
+FROM CuentasEnMora M
+LEFT JOIN GestionesPorCuenta GPC ON GPC.Nro_Cuenta = M.Nro_Cuenta;`;
+
 const KPI_INFO = {
   // COBRANZA
   1:  { def: '% importe cobrado del mes de cuentas sin préstamo activo.',
@@ -643,6 +788,19 @@ const KPI_INFO = {
         link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (30 días)' } },
   67: { def: '% de importe atrasado 30 días o más a los 12 meses de la cosecha de préstamo.',
         link: { url: _U.vintage, label: 'Rol y Vintage Préstamos › Vintage (30 días)' } },
+  // RECUPERO — Composición Refinanciaciones
+  68: { def: 'Participación del producto Tarjeta de Crédito en el monto total refinanciado del período.', sql: SQL_CURA },
+  69: { def: 'Participación del producto Préstamos en el monto total refinanciado del período.', sql: SQL_CURA },
+  // RECUPERO — Gestión y Cobranza
+  70: { def: 'Total de cuentas con saldo impago al cierre del período.', sql: SQL_CUENTAS_MORA },
+  71: { def: 'Cuentas en mora con al menos una gestión de cobranza registrada en el período.', sql: SQL_GESTION },
+  72: { def: 'Cuentas en mora cuya gestión logró contacto efectivo con el cliente o su entorno.', sql: SQL_GESTION },
+  73: { def: 'Total de cuentas gestionadas en el período, independientemente de su estado de mora.', sql: SQL_GESTION },
+  74: { def: 'Porcentaje de la cartera morosa que recibió al menos una gestión de cobranza en el período.', sql: SQL_GESTION },
+  75: { def: 'Porcentaje de promesas de pago generadas en el período que fueron efectivamente cumplidas.', sql: SQL_PROMESAS },
+  76: { def: 'Porcentaje de gestiones realizadas que lograron contacto real con el cliente o su entorno cercano.', sql: SQL_CONTACTO },
+  77: { def: 'Porcentaje de cuentas contactadas efectivamente que realizaron un pago durante el período.', sql: SQL_CONVERSION },
+  78: { def: 'Promedio de gestiones de cobranza realizadas por cuenta en mora en el período.', sql: SQL_INTENSIDAD },
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1143,8 +1301,9 @@ function renderCategory(catId) {
   // Resolve active KPIs (groups or flat list)
   let kpis;
   let subTabHtml = '';
+  let activeId = null;
   if (cat.groups) {
-    const activeId = state.subTabs[catId] || cat.groups[0].id;
+    activeId = state.subTabs[catId] || cat.groups[0].id;
     const activeGroup = cat.groups.find(g => g.id === activeId) || cat.groups[0];
     kpis = activeGroup.kpis;
     subTabHtml = `<div class="subtab-bar">` +
@@ -1198,6 +1357,19 @@ function renderCategory(catId) {
 
   if (catId === 'altas') {
     initAltasPie(data);
+  }
+
+  if (catId === 'cuentas' && activeId === 'refin') {
+    const compoHtml = `
+      <div class="charts-section">
+        <h2 class="section-title">Composición de Refinanciaciones por Mes</h2>
+        <div class="chart-box" style="max-width:860px">
+          <div class="chart-wrapper"><canvas id="chart-refin-compos"></canvas></div>
+        </div>
+      </div>`;
+    el('content').insertAdjacentHTML('beforeend', compoHtml);
+    const compoCanvas = document.getElementById('chart-refin-compos');
+    if (compoCanvas) createRefiComposChart(compoCanvas, data);
   }
 }
 
@@ -1390,6 +1562,66 @@ function createFullChart(canvas, kpi, data) {
                            kpi.fmt === 'money' ? '$' + (v/1e6).toFixed(1) + 'M' :
                            v.toLocaleString('es-AR')
           }
+        }
+      }
+    }
+  });
+  state.charts.push(ch);
+}
+
+function createRefiComposChart(canvas, data) {
+  const labels = data.map(d => d.label);
+  const tc    = data.map(d => d.vals[68]);
+  const prest = data.map(d => d.vals[69]);
+  const gridColor = 'rgba(255,255,255,.07)';
+  const textColor = '#999999';
+  const ch = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'TC',
+          data: tc,
+          backgroundColor: '#CC0000bb',
+          borderColor: '#CC0000',
+          borderWidth: 1,
+          borderRadius: 3,
+        },
+        {
+          label: 'Préstamos',
+          data: prest,
+          backgroundColor: '#6b7280bb',
+          borderColor: '#6b7280',
+          borderWidth: 1,
+          borderRadius: 3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#aaaaaa', font: { size: 12 }, padding: 16 } },
+        tooltip: {
+          backgroundColor: '#2a2a2a',
+          titleColor: '#ffffff',
+          bodyColor: '#cccccc',
+          borderColor: '#444444',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(1)}%`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11 }, maxRotation: 45 } },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 }, callback: v => (v * 100).toFixed(0) + '%' },
+          min: 0, max: 1
         }
       }
     }
