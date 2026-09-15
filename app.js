@@ -818,11 +818,11 @@ const KPI_INFO = {
   77: { def: 'Porcentaje de cuentas contactadas efectivamente que realizaron un pago durante el período.', sql: SQL_CONVERSION },
   78: { def: 'Promedio de gestiones de cobranza realizadas por cuenta en mora en el período.', sql: SQL_INTENSIDAD },
   // BAJAS
-  79: { def: 'Clientes que pasaron del estado habilitado al estado inhabilitado (IH) en el período.' },
+  79: { def: 'Clientes habilitados que pasaron al estado inhabilitado (IH) en el período. Permanecen como clientes pero con operatoria restringida.' },
   80: { def: 'Clientes que pasaron al estado de deuda vencida (DV) en el período.' },
-  81: { def: 'Clientes que pasaron al estado de baja judicial (BJ) en el período.' },
-  82: { def: 'Clientes en estado inhabilitado (IH) que causaron baja definitiva en el período.' },
-  83: { def: 'Clientes en estado de deuda vencida (DV) que causaron baja definitiva en el período.' },
+  81: { def: 'Clientes dados de baja definitiva (BJ) en el período por alcanzar situación de baja total.' },
+  82: { def: 'Clientes que estaban en estado inhabilitado (IH), cancelaron su deuda y fueron dados de baja definitiva en el período.' },
+  83: { def: 'Clientes que estaban en estado de deuda vencida (DV) y fueron dados de baja definitiva en el período.' },
   84: { def: 'Total de cuentas que causaron baja en el período, por todos los motivos y productos.' },
   85: { def: 'Cuentas de Tarjeta de Crédito dadas de baja en el período.' },
   86: { def: 'Cuentas de Solo Créditos dadas de baja en el período.' },
@@ -1235,6 +1235,7 @@ function renderHome() {
 
   let html = '<div class="home-grid">';
   for (const cat of CATEGORIES) {
+    if (cat.id === 'altas' || cat.id === 'bajas') continue;
     const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
     const hero = allKpis.find(k => k.hero) || allKpis[0];
     const last = getLastVal(data, hero.col);
@@ -1306,10 +1307,12 @@ function renderHome() {
 
   const allSummaryCanvases = document.querySelectorAll('.summary-card .sparkline-container canvas');
   const catSparkDefs = [
-    ...CATEGORIES.map(cat => {
-      const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
-      return allKpis.find(k => k.hero) || allKpis[0];
-    }),
+    ...CATEGORIES
+      .filter(cat => cat.id !== 'altas' && cat.id !== 'bajas')
+      .map(cat => {
+        const allKpis = cat.groups ? cat.groups.flatMap(g => g.kpis) : cat.kpis;
+        return allKpis.find(k => k.hero) || allKpis[0];
+      }),
     fpdPKpi
   ];
   allSummaryCanvases.forEach((canvas, i) => {
@@ -1878,9 +1881,9 @@ function buildWaterfallSection(data) {
             <div class="csel-panel">${opts}</div>
           </div>
         </div>
-        <div class="chart-box" style="max-width:960px">
+        <div class="chart-box">
           <div id="wf-validation" style="display:none;padding:6px 0;font-size:.8rem;"></div>
-          <div class="chart-wrapper" style="height:360px"><canvas id="chart-waterfall"></canvas></div>
+          <div class="chart-wrapper" style="height:420px"><canvas id="chart-waterfall"></canvas></div>
         </div>
       </div>
     </div>`;
@@ -2039,7 +2042,7 @@ function drawWaterfall(data, animate) {
         borderColor: barColors.map(c => c + 'dd'),
         borderWidth: 1,
         borderRadius: 2,
-        barPercentage: 0.7,
+        barPercentage: 0.85,
       }]
     },
     options: {
