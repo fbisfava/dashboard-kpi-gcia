@@ -2075,8 +2075,8 @@ function buildWaterfallSection(data) {
   return `
     <div class="charts-section">
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
-        <h2 class="section-title" style="margin:0">Variación de Cuentas Habilitadas</h2>
-        <span id="wf-net-badge" style="display:none;font-size:.8rem;font-weight:600;padding:.2rem .55rem;border-radius:4px;border:1px solid;letter-spacing:.02em;"></span>
+        <h2 class="section-title" style="margin:0">Variación mensual de cuentas habilitadas</h2>
+        <span id="wf-net-badge" style="display:none;font-weight:600;padding:.2rem .55rem;border-radius:4px;border:1px solid;letter-spacing:.02em;"></span>
         <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-secondary);">
           <span>Mes:</span>
           <div class="csel" id="wf-month-sel">
