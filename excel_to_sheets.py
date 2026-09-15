@@ -107,8 +107,8 @@ COLUMNS = [
     # ── ORIGINACIÓN ALTAS (dashboard cols 61-65) ──────────────────────────────
     ("Cantidad de altas en el mes",                53),   # BA
     ("Altas sobre aprobados",                      66),   # BN
-    ("Altas TC",                                   67),   # BO
-    ("Altas SPP",                                  68),   # BP
+    ("Altas TC",                                   54),   # BB (detalle, no resumen BO)
+    ("Altas SPP",                                  60),   # BH (detalle, no resumen BP)
     ("% altas TC con uso en primer mes",           69),   # BQ
 
     # ── VINTAGE >30 (dashboard cols 66-67) ────────────────────────────────────
