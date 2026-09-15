@@ -2074,7 +2074,8 @@ function buildWaterfallSection(data) {
     <div class="charts-section">
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
         <h2 class="section-title" style="margin:0">Variación de Cuentas Habilitadas</h2>
-        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-secondary);">
+        <span id="wf-net-badge" style="display:none;font-size:.8rem;font-weight:600;padding:.2rem .55rem;border-radius:4px;border:1px solid;letter-spacing:.02em;"></span>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-secondary);margin-left:auto;">
           <span>Mes:</span>
           <div class="csel" id="wf-month-sel">
             <div class="csel-trigger">
@@ -2156,6 +2157,43 @@ function drawWaterfall(data, animate) {
     }
   }
 
+  // Net variation badge
+  const net = Math.round(currHab - prevHab);
+  const netBadge = document.getElementById('wf-net-badge');
+  if (netBadge) {
+    const netColor = net >= 0 ? '#22c55e' : '#ef4444';
+    netBadge.textContent = 'Variación neta: ' + (net >= 0 ? '+' : '') + net.toLocaleString('es-AR');
+    netBadge.style.display = 'inline-block';
+    netBadge.style.color = netColor;
+    netBadge.style.borderColor = netColor;
+  }
+
+  // Compute Y-axis range from actual running values so floating bars are visible
+  const gains = [
+    ['Altas', altas],
+    ['Rehab. IH', rehabIH],
+    ['Rehab. DV', rehabDV],
+    ['Rehab. BJ', rehabBJ],
+    ['Rehab. AB', rehabAB],
+  ];
+  const losses = [
+    ['Pérd. IH', perdIH],
+    ['Pérd. DV', perdDV],
+    ['Pérd. BJ', perdBJ],
+  ];
+
+  let runningCheck = prevHab;
+  const allRunning = [prevHab];
+  for (const [, v] of gains)  { runningCheck += v; allRunning.push(runningCheck); }
+  for (const [, v] of losses) { runningCheck -= v; allRunning.push(runningCheck); }
+  allRunning.push(currHab);
+
+  const dataMin   = Math.min(...allRunning);
+  const dataMax   = Math.max(...allRunning);
+  const deltaRange = Math.max(dataMax - dataMin, 200);
+  const axisPad   = deltaRange * 0.35;
+  const yAxisMin  = Math.floor((dataMin - axisPad) / 200) * 200;
+
   const fmt = v => Math.round(Math.abs(v)).toLocaleString('es-AR');
   const barData    = [];
   const barColors  = [];
@@ -2173,31 +2211,19 @@ function drawWaterfall(data, animate) {
     txtAbove.push(above);
   }
 
-  addBar(['Inicio', prev.label], 0, prevHab, '#6b7280', fmt(prevHab), true);
+  addBar(['Inicio', prev.label, 'Ctas. habilitadas'], yAxisMin, prevHab, '#6b7280', fmt(prevHab), true);
 
-  const gains = [
-    ['Altas', altas],
-    ['Rehab. IH', rehabIH],
-    ['Rehab. DV', rehabDV],
-    ['Rehab. BJ', rehabBJ],
-    ['Rehab. AB', rehabAB],
-  ];
   for (const [name, val] of gains) {
     addBar(name, running, running + val, '#22c55e', '+' + fmt(val), true);
     running += val;
   }
 
-  const losses = [
-    ['Pérd. IH', perdIH],
-    ['Pérd. DV', perdDV],
-    ['Pérd. BJ', perdBJ],
-  ];
   for (const [name, val] of losses) {
     addBar(name, running - val, running, '#ef4444', '-' + fmt(val), false);
     running -= val;
   }
 
-  addBar(['Cierre', curr.label], 0, currHab, '#6b7280', fmt(currHab), true);
+  addBar(['Cierre', curr.label, 'Ctas. habilitadas'], yAxisMin, currHab, '#6b7280', fmt(currHab), true);
 
   if (_waterfallChart) {
     const idx = state.charts.indexOf(_waterfallChart);
@@ -2264,10 +2290,10 @@ function drawWaterfall(data, animate) {
           padding: 10,
           displayColors: false,
           callbacks: {
-            title: ctx => Array.isArray(ctx[0].label) ? ctx[0].label.join(' ') : ctx[0].label,
+            title: ctx => Array.isArray(ctx[0].label) ? ctx[0].label.slice(0, 2).join(' ') : ctx[0].label,
             label: ctx => {
               const [y0, y1] = ctx.raw;
-              if (y0 === 0) return Math.round(y1).toLocaleString('es-AR') + ' cuentas';
+              if (y0 === yAxisMin) return Math.round(y1).toLocaleString('es-AR') + ' cuentas habilitadas';
               const delta = y1 - y0;
               return (delta >= 0 ? '+' : '') + Math.round(delta).toLocaleString('es-AR') + ' cuentas';
             }
@@ -2275,8 +2301,9 @@ function drawWaterfall(data, animate) {
         }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 } } },
         y: {
+          min: yAxisMin,
           grid: { color: gridColor },
           ticks: { color: textColor, font: { size: 11 }, callback: v => Math.round(v).toLocaleString('es-AR') }
         }
