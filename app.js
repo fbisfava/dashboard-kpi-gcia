@@ -117,28 +117,52 @@ const CATEGORIES = [
   },
   {
     id: 'altas', name: 'Altas', icon: 'A',
-    kpis: [
-      { name: 'Cantidad de altas en el mes',      col: 61, fmt: 'int', up: true, hero: true },
-      { name: 'Altas sobre aprobados',            col: 62, fmt: 'pct', up: true },
-      { name: 'Altas TC',                         col: 63, fmt: 'int', up: true },
-      { name: 'Altas SPP',                        col: 64, fmt: 'int', up: true },
-      { name: '% altas TC con uso en primer mes', col: 65, fmt: 'pct', up: true },
+    groups: [
+      {
+        id: 'origen', name: 'Altas',
+        kpis: [
+          { name: 'Cantidad de altas en el mes',      col: 61, fmt: 'int', up: true, hero: true },
+          { name: 'Altas sobre aprobados',            col: 62, fmt: 'pct', up: true },
+          { name: 'Altas TC',                         col: 63, fmt: 'int', up: true },
+          { name: 'Altas SPP',                        col: 64, fmt: 'int', up: true },
+          { name: '% altas TC con uso en primer mes', col: 65, fmt: 'pct', up: true },
+        ]
+      },
+      {
+        id: 'recuperadas', name: 'Recuperadas',
+        kpis: [
+          { name: 'Recuperadas desde IH',  col: 98,  fmt: 'int', up: true, hero: true },
+          { name: 'Recuperadas desde DV',  col: 99,  fmt: 'int', up: true },
+          { name: 'Recuperadas desde BJ',  col: 100, fmt: 'int', up: true },
+          { name: 'Recuperadas desde AB',  col: 101, fmt: 'int', up: true },
+        ]
+      },
     ]
   },
   {
     id: 'bajas', name: 'Bajas', icon: 'B',
-    kpis: [
-      { name: 'Bajas totales',                   col: 84, fmt: 'int', up: false, hero: true },
-      { name: 'Pérdida hacia IH',                col: 79, fmt: 'int', up: false },
-      { name: 'Pérdida hacia DV',                col: 80, fmt: 'int', up: false },
-      { name: 'Pérdida hacia BJ',                col: 81, fmt: 'int', up: false },
-      { name: 'Baja desde IH',                   col: 82, fmt: 'int', up: false },
-      { name: 'Baja desde DV',                   col: 83, fmt: 'int', up: false },
-      { name: 'Bajas Tarjeta de Crédito',        col: 85, fmt: 'int', up: false },
-      { name: 'Bajas Solo Créditos',             col: 86, fmt: 'int', up: false },
-      { name: 'Bajas Solo Débitos',              col: 87, fmt: 'int', up: false },
-      { name: 'Bajas SPP',                       col: 88, fmt: 'int', up: false },
-      { name: 'Bajas Tarjeta Créd. Empresario',  col: 89, fmt: 'int', up: false },
+    groups: [
+      {
+        id: 'definitivas', name: 'Bajas',
+        kpis: [
+          { name: 'Bajas totales',                   col: 84, fmt: 'int', up: false, hero: true },
+          { name: 'Pérdida hacia BJ',                col: 81, fmt: 'int', up: false },
+          { name: 'Baja desde IH',                   col: 82, fmt: 'int', up: false },
+          { name: 'Baja desde DV',                   col: 83, fmt: 'int', up: false },
+          { name: 'Bajas Tarjeta de Crédito',        col: 85, fmt: 'int', up: false },
+          { name: 'Bajas Solo Créditos',             col: 86, fmt: 'int', up: false },
+          { name: 'Bajas Solo Débitos',              col: 87, fmt: 'int', up: false },
+          { name: 'Bajas SPP',                       col: 88, fmt: 'int', up: false },
+          { name: 'Bajas Tarjeta Créd. Empresario',  col: 89, fmt: 'int', up: false },
+        ]
+      },
+      {
+        id: 'inhabilitaciones', name: 'Inhabilitaciones',
+        kpis: [
+          { name: 'Pérdida hacia IH', col: 79, fmt: 'int', up: false, hero: true },
+          { name: 'Pérdida hacia DV', col: 80, fmt: 'int', up: false },
+        ]
+      },
     ]
   },
   {
@@ -829,6 +853,11 @@ const KPI_INFO = {
   87: { def: 'Cuentas de Solo Débitos dadas de baja en el período.' },
   88: { def: 'Cuentas de Préstamo Personal (SPP) dadas de baja en el período.' },
   89: { def: 'Cuentas de Tarjeta de Crédito Empresario dadas de baja en el período.' },
+  // RECUPERADAS
+  98:  { def: 'Clientes que estaban en estado inhabilitado (IH) y pasaron a habilitado en el período.' },
+  99:  { def: 'Clientes que estaban en estado de deuda vencida (DV) y se regularizaron, pasando a habilitado en el período.' },
+  100: { def: 'Clientes que estaban en estado de baja (BJ) y fueron rehabilitados en el período.' },
+  101: { def: 'Clientes que estaban en estado de abogados (AB) y fueron rehabilitados en el período.' },
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1348,7 +1377,7 @@ function renderCategory(catId) {
 
   let html = subTabHtml;
 
-  if (catId === 'altas') {
+  if (catId === 'altas' && activeId === 'origen') {
     html += buildAltasPieSection(data);
   }
 
@@ -1386,7 +1415,7 @@ function renderCategory(catId) {
     if (canvas) createFullChart(canvas, kpi, data);
   }
 
-  if (catId === 'altas') {
+  if (catId === 'altas' && activeId === 'origen') {
     initAltasPie(data);
   }
 
@@ -1869,10 +1898,10 @@ function buildWaterfallSection(data) {
   const opts = validMonths.map(d => `<div class="csel-option" data-value="${d.label}">${d.label}</div>`).join('');
   return `
     <div class="charts-section">
-      <h2 class="section-title">Variación de Cuentas Habilitadas</h2>
-      <div class="pie-section">
-        <div class="pie-filter">
-          <span class="pie-filter-label">Mes:</span>
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <h2 class="section-title" style="margin:0">Variación de Cuentas Habilitadas</h2>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-secondary);">
+          <span>Mes:</span>
           <div class="csel" id="wf-month-sel">
             <div class="csel-trigger">
               <span class="csel-label">—</span>
@@ -1881,10 +1910,10 @@ function buildWaterfallSection(data) {
             <div class="csel-panel">${opts}</div>
           </div>
         </div>
-        <div class="chart-box">
-          <div id="wf-validation" style="display:none;padding:6px 0;font-size:.8rem;"></div>
-          <div class="chart-wrapper" style="height:420px"><canvas id="chart-waterfall"></canvas></div>
-        </div>
+      </div>
+      <div class="chart-box" style="width:100%">
+        <div id="wf-validation" style="display:none;padding:6px 0;font-size:.8rem;"></div>
+        <div class="chart-wrapper" style="height:420px"><canvas id="chart-waterfall"></canvas></div>
       </div>
     </div>`;
 }
