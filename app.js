@@ -2296,8 +2296,9 @@ function drawWaterfall(data, animate) {
             label: ctx => {
               const [y0, y1] = ctx.raw;
               if (y0 === yAxisMin) return Math.round(y1).toLocaleString('es-AR') + ' cuentas habilitadas';
-              const delta = y1 - y0;
-              return (delta >= 0 ? '+' : '') + Math.round(delta).toLocaleString('es-AR') + ' cuentas';
+              const delta = Math.abs(y1 - y0);
+              const isLoss = barColors[ctx.dataIndex] === '#ef4444';
+              return (isLoss ? '-' : '+') + Math.round(delta).toLocaleString('es-AR') + ' cuentas';
             }
           }
         }
