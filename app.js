@@ -1380,6 +1380,9 @@ function renderCategory(catId) {
   if (catId === 'altas' && activeId === 'origen') {
     html += buildAltasPieSection(data);
   }
+  if (catId === 'bajas' && activeId === 'definitivas') {
+    html += buildBajasPieSection(data);
+  }
 
   html += '<div class="kpi-grid">';
   for (const kpi of kpis) {
@@ -1417,6 +1420,9 @@ function renderCategory(catId) {
 
   if (catId === 'altas' && activeId === 'origen') {
     initAltasPie(data);
+  }
+  if (catId === 'bajas' && activeId === 'definitivas') {
+    initBajasPie(data);
   }
 
   if (catId === 'cuentas' && activeId === 'base') {
@@ -1530,6 +1536,7 @@ function destroyCharts() {
   state.charts.forEach(c => c.destroy());
   state.charts = [];
   _altasPie = null;
+  _bajasPie = null;
   _waterfallChart = null;
 }
 
@@ -1701,7 +1708,13 @@ function createRefiComposChart(canvas, data) {
 // ─── ALTAS PIE CHART ─────────────────────────────────────────────────────────
 const COL_ALTAS_TC  = 63;
 const COL_ALTAS_SPP = 64;
+const COL_BAJAS_TC  = 85;
+const COL_BAJAS_SC  = 86;
+const COL_BAJAS_SD  = 87;
+const COL_BAJAS_SPP = 88;
+const COL_BAJAS_TCE = 89;
 let _altasPie = null;
+let _bajasPie = null;
 let _waterfallChart = null;
 let _cselDocListenerBound = false;
 
@@ -1886,6 +1899,167 @@ function drawAltasPie(data, animate) {
     }
   });
   state.charts.push(_altasPie);
+}
+
+// ─── BAJAS PIE CHART ─────────────────────────────────────────────────────────
+function buildBajasPieSection(data) {
+  const months = data.filter(d =>
+    d.vals[COL_BAJAS_TC] != null || d.vals[COL_BAJAS_SPP] != null || d.vals[COL_BAJAS_TCE] != null
+  );
+  if (!months.length) return '';
+  const opts = months.map(d => `<div class="csel-option" data-value="${d.label}">${d.label}</div>`).join('');
+  return `
+    <div class="charts-section">
+      <div class="pie-and-side">
+        <div>
+          <h2 class="section-title">Composición de Bajas</h2>
+          <div class="pie-section">
+            <div class="pie-filter">
+              <span class="pie-filter-label">Mes:</span>
+              <div class="csel" id="bajas-pie-month-sel">
+                <div class="csel-trigger">
+                  <span class="csel-label">—</span>
+                  <span class="csel-arrow">▾</span>
+                </div>
+                <div class="csel-panel">${opts}</div>
+              </div>
+            </div>
+            <div class="pie-row">
+              <div class="pie-wrapper"><canvas id="chart-pie-bajas"></canvas></div>
+              <div class="pie-total-card">
+                <div class="pie-total-label">Total de bajas</div>
+                <div class="pie-total-num" id="bajas-pie-total-num">—</div>
+                <div class="kpi-deltas" id="bajas-pie-total-deltas"></div>
+                <div class="pie-total-month" id="bajas-pie-total-month"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function initBajasPie(data) {
+  const wrapper = document.getElementById('bajas-pie-month-sel');
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector('.csel-trigger');
+  const label   = wrapper.querySelector('.csel-label');
+  const options = wrapper.querySelectorAll('.csel-option');
+  function selectOpt(opt) {
+    options.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    wrapper.dataset.value = opt.dataset.value;
+    label.textContent = opt.dataset.value;
+    wrapper.classList.remove('open');
+  }
+  if (options.length) selectOpt(options[options.length - 1]);
+  drawBajasPie(data, false);
+  trigger.addEventListener('click', e => { e.stopPropagation(); wrapper.classList.toggle('open'); });
+  if (!_cselDocListenerBound) {
+    _cselDocListenerBound = true;
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.csel.open').forEach(w => w.classList.remove('open'));
+    });
+  }
+  options.forEach(opt => opt.addEventListener('click', e => {
+    e.stopPropagation(); selectOpt(opt); drawBajasPie(data, true);
+  }));
+}
+
+function drawBajasPie(data, animate) {
+  const wrapper = document.getElementById('bajas-pie-month-sel');
+  const canvas  = document.getElementById('chart-pie-bajas');
+  if (!wrapper || !canvas) return;
+
+  const selectedValue = wrapper.dataset.value;
+  const rowIdx  = data.findIndex(d => d.label === selectedValue);
+  const row     = rowIdx >= 0 ? data[rowIdx] : null;
+  const prevRow = rowIdx > 0   ? data[rowIdx - 1]  : null;
+  const yoyRow  = rowIdx >= 12 ? data[rowIdx - 12] : null;
+
+  const tc    = row?.vals[COL_BAJAS_TC]  ?? 0;
+  const sc    = row?.vals[COL_BAJAS_SC]  ?? 0;
+  const sd    = row?.vals[COL_BAJAS_SD]  ?? 0;
+  const spp   = row?.vals[COL_BAJAS_SPP] ?? 0;
+  const tce   = row?.vals[COL_BAJAS_TCE] ?? 0;
+  const total = tc + sc + sd + spp + tce;
+
+  const sumPrev = r => r ? (r.vals[COL_BAJAS_TC]??0)+(r.vals[COL_BAJAS_SC]??0)+(r.vals[COL_BAJAS_SD]??0)+(r.vals[COL_BAJAS_SPP]??0)+(r.vals[COL_BAJAS_TCE]??0) : null;
+  const prevTot = sumPrev(prevRow);
+  const yoyTot  = sumPrev(yoyRow);
+  const dM = total > 0 && prevTot != null ? getDelta(total, prevTot, 'int') : null;
+  const dY = total > 0 && yoyTot  != null ? getDelta(total, yoyTot,  'int') : null;
+
+  const numEl    = document.getElementById('bajas-pie-total-num');
+  const deltasEl = document.getElementById('bajas-pie-total-deltas');
+  const monthEl  = document.getElementById('bajas-pie-total-month');
+  const numText    = total > 0 ? Math.round(total).toLocaleString('es-AR') : '—';
+  const deltasHtml = deltaTag(dM, false, 'm/m', 'int') + deltaTag(dY, false, 'a/a', 'int');
+  if (numEl) {
+    if (animate) {
+      numEl.classList.add('pie-num-out');
+      setTimeout(() => {
+        numEl.textContent = numText;
+        numEl.classList.remove('pie-num-out');
+        if (deltasEl) deltasEl.innerHTML = deltasHtml;
+      }, 180);
+    } else {
+      numEl.textContent = numText;
+      if (deltasEl) deltasEl.innerHTML = deltasHtml;
+    }
+  }
+  if (monthEl) monthEl.textContent = selectedValue;
+
+  if (_bajasPie) {
+    const idx = state.charts.indexOf(_bajasPie);
+    if (idx >= 0) state.charts.splice(idx, 1);
+    _bajasPie.destroy();
+    _bajasPie = null;
+  }
+
+  const slices = [
+    { label: 'TC',           val: tc,  color: '#CC0000' },
+    { label: 'Solo Créditos', val: sc, color: '#6b7280' },
+    { label: 'Solo Débitos',  val: sd, color: '#4b5563' },
+    { label: 'SPP',          val: spp, color: '#9ca3af' },
+    { label: 'TCE Empresario', val: tce, color: '#eab308' },
+  ];
+
+  _bajasPie = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: slices.map(s => s.label),
+      datasets: [{
+        data: slices.map(s => s.val),
+        backgroundColor: slices.map(s => s.color),
+        borderWidth: 2,
+        borderColor: '#1e1e1e'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#aaaaaa', font: { size: 13 }, padding: 16 } },
+        tooltip: {
+          backgroundColor: '#2a2a2a',
+          titleColor: '#ffffff',
+          bodyColor: '#cccccc',
+          borderColor: '#444444',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed;
+              const pct = total > 0 ? (v / total * 100).toFixed(1) : '0.0';
+              return `${ctx.label}: ${v.toLocaleString('es-AR')} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+  state.charts.push(_bajasPie);
 }
 
 // ─── WATERFALL: Variación de Cuentas Habilitadas ─────────────────────────────
