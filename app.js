@@ -2064,8 +2064,10 @@ function drawBajasPie(data, animate) {
 
 // ─── WATERFALL: Variación de Cuentas Habilitadas ─────────────────────────────
 function buildWaterfallSection(data) {
+  const cutoff = new Date(2024, 5, 1); // jun-2024
   const validMonths = data.filter((d, i) => {
     if (i === 0) return false;
+    if (d.date < cutoff) return false;
     return d.vals[16] != null && data[i - 1].vals[16] != null;
   });
   if (!validMonths.length) return '';
@@ -2075,7 +2077,7 @@ function buildWaterfallSection(data) {
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
         <h2 class="section-title" style="margin:0">Variación de Cuentas Habilitadas</h2>
         <span id="wf-net-badge" style="display:none;font-size:.8rem;font-weight:600;padding:.2rem .55rem;border-radius:4px;border:1px solid;letter-spacing:.02em;"></span>
-        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-secondary);margin-left:auto;">
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-secondary);">
           <span>Mes:</span>
           <div class="csel" id="wf-month-sel">
             <div class="csel-trigger">
