@@ -126,6 +126,22 @@ const CATEGORIES = [
     ]
   },
   {
+    id: 'bajas', name: 'Bajas', icon: 'B',
+    kpis: [
+      { name: 'Bajas totales',                   col: 84, fmt: 'int', up: false, hero: true },
+      { name: 'Pérdida hacia IH',                col: 79, fmt: 'int', up: false },
+      { name: 'Pérdida hacia DV',                col: 80, fmt: 'int', up: false },
+      { name: 'Pérdida hacia BJ',                col: 81, fmt: 'int', up: false },
+      { name: 'Baja desde IH',                   col: 82, fmt: 'int', up: false },
+      { name: 'Baja desde DV',                   col: 83, fmt: 'int', up: false },
+      { name: 'Bajas Tarjeta de Crédito',        col: 85, fmt: 'int', up: false },
+      { name: 'Bajas Solo Créditos',             col: 86, fmt: 'int', up: false },
+      { name: 'Bajas Solo Débitos',              col: 87, fmt: 'int', up: false },
+      { name: 'Bajas SPP',                       col: 88, fmt: 'int', up: false },
+      { name: 'Bajas Tarjeta Créd. Empresario',  col: 89, fmt: 'int', up: false },
+    ]
+  },
+  {
     id: 'siisa', name: 'Originación SIISA', icon: 'OS',
     kpis: [
       { name: 'N° Solicitantes General',       col: 33, fmt: 'int', up: true,  th: [1000, 500] },
@@ -801,6 +817,18 @@ const KPI_INFO = {
   76: { def: 'Porcentaje de gestiones realizadas que lograron contacto real con el cliente o su entorno cercano.', sql: SQL_CONTACTO },
   77: { def: 'Porcentaje de cuentas contactadas efectivamente que realizaron un pago durante el período.', sql: SQL_CONVERSION },
   78: { def: 'Promedio de gestiones de cobranza realizadas por cuenta en mora en el período.', sql: SQL_INTENSIDAD },
+  // BAJAS
+  79: { def: 'Clientes que pasaron del estado habilitado al estado inhabilitado (IH) en el período.' },
+  80: { def: 'Clientes que pasaron al estado de deuda vencida (DV) en el período.' },
+  81: { def: 'Clientes que pasaron al estado de baja judicial (BJ) en el período.' },
+  82: { def: 'Clientes en estado inhabilitado (IH) que causaron baja definitiva en el período.' },
+  83: { def: 'Clientes en estado de deuda vencida (DV) que causaron baja definitiva en el período.' },
+  84: { def: 'Total de cuentas que causaron baja en el período, por todos los motivos y productos.' },
+  85: { def: 'Cuentas de Tarjeta de Crédito dadas de baja en el período.' },
+  86: { def: 'Cuentas de Solo Créditos dadas de baja en el período.' },
+  87: { def: 'Cuentas de Solo Débitos dadas de baja en el período.' },
+  88: { def: 'Cuentas de Préstamo Personal (SPP) dadas de baja en el período.' },
+  89: { def: 'Cuentas de Tarjeta de Crédito Empresario dadas de baja en el período.' },
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1263,7 +1291,7 @@ function renderHome() {
     </div>`;
 
   html += '</div>';
-  html += buildAltasPieSection(data, true);
+  html += buildWaterfallSection(data);
   el('content').innerHTML = html;
 
   document.querySelectorAll('.summary-card:not(.extra-card)').forEach(card => {
@@ -1288,7 +1316,7 @@ function renderHome() {
     if (catSparkDefs[i]) createSparkline(canvas, getLast12(data, catSparkDefs[i].col));
   });
 
-  initAltasPie(data);
+  initWaterfall(data);
 }
 
 // ─── RENDERING: CATEGORY ─────────────────────────────────────────────────────
@@ -1357,6 +1385,14 @@ function renderCategory(catId) {
 
   if (catId === 'altas') {
     initAltasPie(data);
+  }
+
+  if (catId === 'cuentas' && activeId === 'base') {
+    const wfHtml = buildWaterfallSection(data);
+    if (wfHtml) {
+      el('content').insertAdjacentHTML('beforeend', wfHtml);
+      initWaterfall(data);
+    }
   }
 
   if (catId === 'cuentas' && activeId === 'refin') {
@@ -1462,6 +1498,7 @@ function destroyCharts() {
   state.charts.forEach(c => c.destroy());
   state.charts = [];
   _altasPie = null;
+  _waterfallChart = null;
 }
 
 function createSparkline(canvas, values) {
@@ -1633,6 +1670,7 @@ function createRefiComposChart(canvas, data) {
 const COL_ALTAS_TC  = 63;
 const COL_ALTAS_SPP = 64;
 let _altasPie = null;
+let _waterfallChart = null;
 let _cselDocListenerBound = false;
 
 function buildAltasPieSection(data, showFpdRefin = false) {
@@ -1721,8 +1759,7 @@ function initAltasPie(data) {
   if (!_cselDocListenerBound) {
     _cselDocListenerBound = true;
     document.addEventListener('click', () => {
-      const w = document.getElementById('pie-month-sel');
-      if (w) w.classList.remove('open');
+      document.querySelectorAll('.csel.open').forEach(w => w.classList.remove('open'));
     });
   }
   options.forEach(opt => opt.addEventListener('click', e => {
@@ -1817,6 +1854,230 @@ function drawAltasPie(data, animate) {
     }
   });
   state.charts.push(_altasPie);
+}
+
+// ─── WATERFALL: Variación de Cuentas Habilitadas ─────────────────────────────
+function buildWaterfallSection(data) {
+  const validMonths = data.filter((d, i) => {
+    if (i === 0) return false;
+    return d.vals[16] != null && data[i - 1].vals[16] != null;
+  });
+  if (!validMonths.length) return '';
+  const opts = validMonths.map(d => `<div class="csel-option" data-value="${d.label}">${d.label}</div>`).join('');
+  return `
+    <div class="charts-section">
+      <h2 class="section-title">Variación de Cuentas Habilitadas</h2>
+      <div class="pie-section">
+        <div class="pie-filter">
+          <span class="pie-filter-label">Mes:</span>
+          <div class="csel" id="wf-month-sel">
+            <div class="csel-trigger">
+              <span class="csel-label">—</span>
+              <span class="csel-arrow">▾</span>
+            </div>
+            <div class="csel-panel">${opts}</div>
+          </div>
+        </div>
+        <div class="chart-box" style="max-width:960px">
+          <div id="wf-validation" style="display:none;padding:6px 0;font-size:.8rem;"></div>
+          <div class="chart-wrapper" style="height:360px"><canvas id="chart-waterfall"></canvas></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function initWaterfall(data) {
+  const wrapper = document.getElementById('wf-month-sel');
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector('.csel-trigger');
+  const panel   = wrapper.querySelector('.csel-panel');
+  const label   = wrapper.querySelector('.csel-label');
+  const options = wrapper.querySelectorAll('.csel-option');
+  function selectOpt(opt) {
+    options.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    wrapper.dataset.value = opt.dataset.value;
+    label.textContent = opt.dataset.value;
+    wrapper.classList.remove('open');
+  }
+  if (options.length) selectOpt(options[options.length - 1]);
+  drawWaterfall(data, false);
+  trigger.addEventListener('click', e => { e.stopPropagation(); wrapper.classList.toggle('open'); });
+  if (!_cselDocListenerBound) {
+    _cselDocListenerBound = true;
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.csel.open').forEach(w => w.classList.remove('open'));
+    });
+  }
+  options.forEach(opt => opt.addEventListener('click', e => {
+    e.stopPropagation(); selectOpt(opt); drawWaterfall(data, true);
+  }));
+}
+
+function drawWaterfall(data, animate) {
+  const wrapper = document.getElementById('wf-month-sel');
+  const canvas  = document.getElementById('chart-waterfall');
+  if (!wrapper || !canvas) return;
+
+  const selectedLabel = wrapper.dataset.value;
+  const rowIdx = data.findIndex(d => d.label === selectedLabel);
+  if (rowIdx < 1) return;
+  const curr = data[rowIdx];
+  const prev = data[rowIdx - 1];
+
+  const prevHab  = prev.vals[16]  ?? 0;
+  const currHab  = curr.vals[16]  ?? 0;
+  const altas    = curr.vals[61]  ?? 0;
+  const rehabIH  = curr.vals[98]  ?? 0;
+  const rehabDV  = curr.vals[99]  ?? 0;
+  const rehabBJ  = curr.vals[100] ?? 0;
+  const rehabAB  = curr.vals[101] ?? 0;
+  const perdIH   = curr.vals[79]  ?? 0;
+  const perdDV   = curr.vals[80]  ?? 0;
+  const perdBJ   = curr.vals[81]  ?? 0;
+
+  const expected = prevHab + altas + rehabIH + rehabDV + rehabBJ + rehabAB - perdIH - perdDV - perdBJ;
+  const diff = Math.round(currHab - expected);
+
+  const validEl = document.getElementById('wf-validation');
+  if (validEl) {
+    if (Math.abs(diff) > 1) {
+      validEl.style.display = 'block';
+      validEl.style.color = '#f97316';
+      validEl.textContent = `⚠ Diferencia no explicada: ${Math.abs(diff).toLocaleString('es-AR')} cuentas (${diff > 0 ? '+' : ''}${diff.toLocaleString('es-AR')})`;
+    } else {
+      validEl.style.display = 'none';
+    }
+  }
+
+  const fmt = v => Math.round(Math.abs(v)).toLocaleString('es-AR');
+  const barData    = [];
+  const barColors  = [];
+  const chartLabels = [];
+  const barTxt     = [];
+  const txtAbove   = [];
+
+  let running = prevHab;
+
+  function addBar(label, y0, y1, color, text, above) {
+    chartLabels.push(label);
+    barData.push([y0, y1]);
+    barColors.push(color);
+    barTxt.push(text);
+    txtAbove.push(above);
+  }
+
+  addBar(['Inicio', prev.label], 0, prevHab, '#6b7280', fmt(prevHab), true);
+
+  const gains = [
+    ['Altas', altas],
+    ['Rehab. IH', rehabIH],
+    ['Rehab. DV', rehabDV],
+    ['Rehab. BJ', rehabBJ],
+    ['Rehab. AB', rehabAB],
+  ];
+  for (const [name, val] of gains) {
+    addBar(name, running, running + val, '#22c55e', '+' + fmt(val), true);
+    running += val;
+  }
+
+  const losses = [
+    ['Pérd. IH', perdIH],
+    ['Pérd. DV', perdDV],
+    ['Pérd. BJ', perdBJ],
+  ];
+  for (const [name, val] of losses) {
+    addBar(name, running - val, running, '#ef4444', '-' + fmt(val), false);
+    running -= val;
+  }
+
+  addBar(['Cierre', curr.label], 0, currHab, '#6b7280', fmt(currHab), true);
+
+  if (_waterfallChart) {
+    const idx = state.charts.indexOf(_waterfallChart);
+    if (idx >= 0) state.charts.splice(idx, 1);
+    _waterfallChart.destroy();
+    _waterfallChart = null;
+  }
+
+  const textColor = '#999999';
+  const gridColor = 'rgba(255,255,255,.07)';
+  const datalabelsPlugin = {
+    id: 'wfLabels',
+    afterDatasetsDraw(chart) {
+      const ctx    = chart.ctx;
+      const yScale = chart.scales.y;
+      const meta   = chart.getDatasetMeta(0);
+      ctx.save();
+      ctx.font = 'bold 11px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#e5e5e5';
+      meta.data.forEach((bar, j) => {
+        const [y0, y1] = barData[j];
+        const text = barTxt[j];
+        if (!text) return;
+        if (txtAbove[j]) {
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(text, bar.x, yScale.getPixelForValue(y1) - 4);
+        } else {
+          ctx.textBaseline = 'top';
+          ctx.fillText(text, bar.x, yScale.getPixelForValue(y0) + 4);
+        }
+      });
+      ctx.restore();
+    }
+  };
+
+  _waterfallChart = new Chart(canvas, {
+    type: 'bar',
+    plugins: [datalabelsPlugin],
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        data: barData,
+        backgroundColor: barColors,
+        borderColor: barColors.map(c => c + 'dd'),
+        borderWidth: 1,
+        borderRadius: 2,
+        barPercentage: 0.7,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 28 } },
+      animation: animate ? { duration: 400 } : false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#2a2a2a',
+          titleColor: '#ffffff',
+          bodyColor: '#cccccc',
+          borderColor: '#444444',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: false,
+          callbacks: {
+            title: ctx => Array.isArray(ctx[0].label) ? ctx[0].label.join(' ') : ctx[0].label,
+            label: ctx => {
+              const [y0, y1] = ctx.raw;
+              if (y0 === 0) return Math.round(y1).toLocaleString('es-AR') + ' cuentas';
+              const delta = y1 - y0;
+              return (delta >= 0 ? '+' : '') + Math.round(delta).toLocaleString('es-AR') + ' cuentas';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11 } } },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 }, callback: v => Math.round(v).toLocaleString('es-AR') }
+        }
+      }
+    }
+  });
+  state.charts.push(_waterfallChart);
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────

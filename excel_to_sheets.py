@@ -12,118 +12,152 @@ OUTPUT_PATH = r"C:\Users\bistolfi.federico\Downloads\para_importar_sheets.csv"
 SHEET_NAME  = "DATOS RIESGO Y RECUPERO"
 
 # Mapeo: (nombre columna GSheets, columna Excel 1-indexed)
-# El orden de esta lista define el orden de columnas en el CSV de salida.
+# El ORDEN define el número de columna en el CSV (y en app.js: kpi.col = posición 1-indexed aquí).
+# IMPORTANTE: los números de columna Excel fueron actualizados para reflejar la estructura actual del archivo.
 COLUMNS = [
     # ── FECHA ──────────────────────────────────────────────────────────────────
-    ("Año-Mes",                                    1),
+    ("Año-Mes",                                    1),   # A
 
     # ── COBRANZA (dashboard cols 1-6) ─────────────────────────────────────────
-    ("Cobranza Mes Sin PP",                         2),
-    ("Cobranza Mes Con PP",                         3),
-    ("Cobranza del mes promedio",                   4),
-    ("Cobranza 90 dias Sin PP",                     5),
-    ("Cobranza 90 dias Con PP",                     6),
-    ("Cobranza 90 dias promedio",                   7),
+    ("Cobranza Mes Sin PP",                         2),   # B
+    ("Cobranza Mes Con PP",                         3),   # C
+    ("Cobranza del mes promedio",                   4),   # D
+    ("Cobranza 90 dias Sin PP",                     5),   # E
+    ("Cobranza 90 dias Con PP",                     6),   # F
+    ("Cobranza 90 dias promedio",                   7),   # G
 
     # ── MOROSIDAD TC (dashboard cols 7-10) ────────────────────────────────────
-    ("Morosidad 1-60d Montos TC",                   8),
-    ("Morosidad 1-60d Q casos TC",                  9),
-    ("Morosidad +60d Montos TC",                   10),
-    ("Morosidad +60d Q casos TC",                  11),
+    ("Morosidad 1-60d Montos TC",                   8),   # H
+    ("Morosidad 1-60d Q casos TC",                  9),   # I
+    ("Morosidad +60d Montos TC",                   10),   # J
+    ("Morosidad +60d Q casos TC",                  11),   # K
 
     # ── MOROSIDAD PRÉSTAMOS (dashboard cols 11-14) ────────────────────────────
-    ("Morosidad 1-60d Montos Prést.",              12),
-    ("Morosidad 1-60d Q casos Prést.",             13),
-    ("Morosidad +60d Montos Prést.",               14),
-    ("Morosidad +60d Q casos Prést.",              15),
+    ("Morosidad 1-60d Montos Prést.",              12),   # L
+    ("Morosidad 1-60d Q casos Prést.",             13),   # M
+    ("Morosidad +60d Montos Prést.",               14),   # N
+    ("Morosidad +60d Q casos Prést.",              15),   # O
 
-    # ── CUENTAS Y CARTERA (dashboard cols 15-21) ──────────────────────────────
-    ("Cuentas inhabilitadas o DV",                 16),
-    ("Cuentas habilitadas",                        17),
-    ("Cuentas totales",                            18),
-    ("Ratio IH sobre totales",                     19),
-    ("Q clientes que pasan a AB",                  20),
-    ("Monto que pasa a AB",                        21),
-    ("Q de refinanciaciones",                      23),   # col 22 Excel es Score Veraz refin.
+    # ── CUENTAS Y CARTERA base (dashboard cols 15-18) ─────────────────────────
+    ("Cuentas inhabilitadas o DV",                 16),   # P
+    ("Cuentas habilitadas",                        17),   # Q
+    ("Cuentas totales",                            18),   # R
+    ("Ratio IH sobre totales",                     19),   # S
 
-    # ── (cols 22-23 GSheets vacías — reservadas) ──────────────────────────────
+    # ── CUENTAS Y CARTERA — AB (dashboard cols 19-20) ─────────────────────────
+    ("Q clientes que pasan a AB",                  31),   # AE
+    ("Monto que pasa a AB",                        32),   # AF
+
+    # ── CUENTAS Y CARTERA — Refinanciaciones (dashboard cols 21-23) ───────────
+    ("Q de refinanciaciones",                      34),   # AH
     ("(reservado)",                               None),
     ("(reservado)",                               None),
 
     # ── SCORE VERAZ CARTERA (dashboard col 24) ────────────────────────────────
-    ("Score Veraz promedio",                       47),
+    ("Score Veraz promedio",                       70),   # BR
 
     # ── ROLL RATES (dashboard cols 25-30) ─────────────────────────────────────
-    ("RR 1-30 Préstamos",                          48),
-    ("RR 1-30 TC",                                 49),
-    ("RR Directo 90-120d Préstamos",               50),
-    ("RR Directo 90-120d TC",                      51),
-    ("RR 1-30 Total",                              52),
-    ("RR Directo 90-120d Total",                   53),
+    ("RR 1-30 Préstamos",                          71),   # BS
+    ("RR 1-30 TC",                                 72),   # BT
+    ("RR Directo 90-120d Préstamos",               73),   # BU
+    ("RR Directo 90-120d TC",                      74),   # BV
+    ("RR 1-30 Total",                              75),   # BW
+    ("RR Directo 90-120d Total",                   76),   # BX
 
     # ── VINTAGE >90 (dashboard cols 31-32) ────────────────────────────────────
-    ("Vintage >90 prést. a 6 meses",               56),
-    ("Vintage >90 prést. a 12 meses",              57),
+    ("Vintage >90 prést. a 6 meses",               79),   # CA
+    ("Vintage >90 prést. a 12 meses",              80),   # CB
 
     # ── ORIGINACIÓN SIISA (dashboard cols 33-43) ──────────────────────────────
-    ("N° Solicitantes General",                    58),
-    ("Tasa Aprobación General",                    60),
-    ("Tasa Rechazo General",                       61),
-    ("N° Solicitantes Tarjeta",                    62),
-    ("Tasa Aprobación Tarjeta",                    63),
-    ("Tasa Rechazo Tarjeta",                       64),
-    ("N° Solicitantes Préstamo",                   65),
-    ("Tasa Aprobación Préstamo",                   66),
-    ("Tasa Rechazo Préstamo",                      67),
-    ("Rechazos Política Zonas Prést.",             68),
-    ("Tasa de conversión Veraz",                   69),
+    ("N° Solicitantes General",                    81),   # CC
+    ("Tasa Aprobación General",                    83),   # CE
+    ("Tasa Rechazo General",                       84),   # CF
+    ("N° Solicitantes Tarjeta",                    85),   # CG
+    ("Tasa Aprobación Tarjeta",                    86),   # CH
+    ("Tasa Rechazo Tarjeta",                       87),   # CI
+    ("N° Solicitantes Préstamo",                   88),   # CJ
+    ("Tasa Aprobación Préstamo",                   89),   # CK
+    ("Tasa Rechazo Préstamo",                      90),   # CL
+    ("Rechazos Política Zonas Prést.",             91),   # CM
+    ("Tasa de conversión Veraz",                   92),   # CN
 
-    # ── NUEVOS — CUENTAS Y CARTERA (dashboard cols 44-51) ────────────────────
-    ("Score Veraz promedio refinanciaciones",      22),
-    ("FPD Refinanciaciones",                       24),
-    ("% FPD refinanciaciones",                     25),
-    ("Q préstamos",                                26),
-    ("FPD préstamos",                              27),
-    ("% FPD préstamos",                            28),
-    ("Cuentas con préstamo activo",                38),
-    ("% cuentas hab. con préstamo activo",         39),
+    # ── CUENTAS Y CARTERA — Refinanciaciones (dashboard cols 44-46) ──────────
+    ("Score Veraz promedio refinanciaciones",      33),   # AG
+    ("FPD Refinanciaciones",                       35),   # AI
+    ("% FPD refinanciaciones",                     36),   # AJ
 
-    # ── NUEVOS — TASAS DE CURA (dashboard cols 52-60) ────────────────────────
-    ("Tasa de cura préstamos T2",                  29),
-    ("Tasa de cura TC T2",                         30),
-    ("Tasa de cura refin. T2",                     31),
-    ("Tasa de cura préstamos T3",                  32),
-    ("Tasa de cura TC T3",                         33),
-    ("Tasa de cura refin. T3",                     34),
-    ("Tasa de cura préstamos T4",                  35),
-    ("Tasa de cura TC T4",                         36),
-    ("Tasa de cura refin. T4",                     37),
+    # ── CUENTAS Y CARTERA — Préstamos (dashboard cols 47-51) ─────────────────
+    ("Q préstamos",                                37),   # AK
+    ("FPD préstamos",                              38),   # AL
+    ("% FPD préstamos",                            39),   # AM
+    ("Cuentas con préstamo activo",                49),   # AW
+    ("% cuentas hab. con préstamo activo",         50),   # AX
 
-    # ── NUEVOS — ORIGINACIÓN ALTAS (dashboard cols 61-65) ────────────────────
-    ("Cantidad de altas en el mes",                42),
-    ("Altas sobre aprobados",                      43),
-    ("Altas TC",                                   44),
-    ("Altas SPP",                                  45),
-    ("% altas TC con uso en primer mes",           46),
+    # ── TASAS DE CURA (dashboard cols 52-60) ──────────────────────────────────
+    ("Tasa de cura préstamos T2",                  40),   # AN
+    ("Tasa de cura TC T2",                         41),   # AO
+    ("Tasa de cura refin. T2",                     42),   # AP
+    ("Tasa de cura préstamos T3",                  43),   # AQ
+    ("Tasa de cura TC T3",                         44),   # AR
+    ("Tasa de cura refin. T3",                     45),   # AS
+    ("Tasa de cura préstamos T4",                  46),   # AT
+    ("Tasa de cura TC T4",                         47),   # AU
+    ("Tasa de cura refin. T4",                     48),   # AV
 
-    # ── NUEVOS — VINTAGE >30 (dashboard cols 66-67) ──────────────────────────
-    ("Vintage >30 prést. a 6 meses",               54),
-    ("Vintage >30 prést. a 12 meses",              55),
+    # ── ORIGINACIÓN ALTAS (dashboard cols 61-65) ──────────────────────────────
+    ("Cantidad de altas en el mes",                53),   # BA
+    ("Altas sobre aprobados",                      66),   # BN
+    ("Altas TC",                                   67),   # BO
+    ("Altas SPP",                                  68),   # BP
+    ("% altas TC con uso en primer mes",           69),   # BQ
 
-    # ── RECUPERO — COMPOSICIÓN REFINANCIACIONES (dashboard cols 68-69) ───────
-    ("Composición refi TC",                        70),
-    ("Composición refi Préstamos",                 71),
+    # ── VINTAGE >30 (dashboard cols 66-67) ────────────────────────────────────
+    ("Vintage >30 prést. a 6 meses",               77),   # BY
+    ("Vintage >30 prést. a 12 meses",              78),   # BZ
+
+    # ── RECUPERO — COMPOSICIÓN REFINANCIACIONES (dashboard cols 68-69) ────────
+    ("Composición refi TC",                        93),   # CO
+    ("Composición refi Préstamos",                 94),   # CP
 
     # ── RECUPERO — GESTIÓN Y COBRANZA (dashboard cols 70-78) ─────────────────
-    ("Clientes en mora",                           72),
-    ("Clientes en mora mes c gestion",             73),
-    ("Clientes en mora c gestion positiva",        74),
-    ("Cuentas con gestion x mes",                  75),
-    ("Tasa de clientes en mora gestionados",       76),
-    ("Tasa de cumplimiento de promesas",           77),
-    ("Tasa de contacto efectivo",                  78),
-    ("Tasa de conversion de gestion a pago",       79),
-    ("Intensidad de gestion",                      80),
+    ("Clientes en mora",                           95),   # CQ
+    ("Clientes en mora mes c gestion",             96),   # CR
+    ("Clientes en mora c gestion positiva",        97),   # CS
+    ("Cuentas con gestion x mes",                  98),   # CT
+    ("Tasa de clientes en mora gestionados",       99),   # CU
+    ("Tasa de cumplimiento de promesas",          100),   # CV
+    ("Tasa de contacto efectivo",                 101),   # CW
+    ("Tasa de conversion de gestion a pago",      102),   # CX
+    ("Intensidad de gestion",                     103),   # CY
+
+    # ── NUEVOS — BAJAS Y PÉRDIDAS (dashboard cols 79-89) ─────────────────────
+    ("Perdida hacia IH",                           20),   # T
+    ("Perdida hacia DV",                           21),   # U
+    ("Perdida hacia BJ",                           22),   # V
+    ("Baja desde IH",                              23),   # W
+    ("Baja desde DV",                              24),   # X
+    ("Bajas totales",                              25),   # Y
+    ("Bajas Tarjeta de Crédito",                   26),   # Z
+    ("Bajas Solo Créditos",                        27),   # AA
+    ("Bajas Solo Débitos",                         28),   # AB
+    ("Bajas SPP",                                  29),   # AC
+    ("Bajas Tarjeta Créd. Empresario",             30),   # AD
+
+    # ── NUEVOS — ALTAS POR TIPO (dashboard cols 90-97) ───────────────────────
+    ("Altas TC (detalle)",                         54),   # BB
+    ("Altas BFC",                                  55),   # BC
+    ("Altas CSR",                                  56),   # BD
+    ("Altas SBE",                                  57),   # BE
+    ("Altas SCR",                                  58),   # BF
+    ("Altas SDE",                                  59),   # BG
+    ("Altas SPP (tipo)",                           60),   # BH
+    ("Altas TCE",                                  61),   # BI
+
+    # ── NUEVOS — REHABILITADAS (dashboard cols 98-101) ───────────────────────
+    ("Rehabilitadas desde IH",                     62),   # BJ
+    ("Rehabilitadas desde DV",                     63),   # BK
+    ("Rehabilitadas desde BJ",                     64),   # BL
+    ("Rehabilitadas desde AB",                     65),   # BM
 ]
 
 
@@ -133,7 +167,6 @@ def fmt_date(val):
     if isinstance(val, datetime):
         return val.strftime("%Y-%m")
     s = str(val)
-    # Handle "2024-01-01 00:00:00" strings
     try:
         return datetime.strptime(s[:10], "%Y-%m-%d").strftime("%Y-%m")
     except ValueError:
@@ -144,7 +177,6 @@ def fmt_value(val):
     if val is None:
         return ""
     if isinstance(val, float):
-        # Preserve full precision; Google Sheets handles it fine
         return repr(val)
     return str(val)
 
@@ -190,6 +222,7 @@ def main():
     print("  Archivo → Importar → Subir → elegir 'para_importar_sheets.csv'")
     print("  Tipo de importación: 'Reemplazar hoja de cálculo actual'")
     print("  Separador: coma (detectado automáticamente)")
+    print("  Desmarcar 'Convertir texto en números, fechas y fórmulas'")
 
 
 if __name__ == "__main__":
